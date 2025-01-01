@@ -1,5 +1,4 @@
-﻿#ifndef ALLOCATOR_HPP_
-#define ALLOCATOR_HPP_
+﻿#pragma once
 
 #include <cstdlib>
 #include <new>
@@ -199,5 +198,3 @@ public:
 // 
 // } // namespace Hypnos
 // } // namespace Blanketmen
-
-#endif // ALLOCATOR_HPP_

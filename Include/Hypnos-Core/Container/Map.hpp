@@ -1,8 +1,7 @@
-#ifndef MAP_HPP_
-#define MAP_HPP_
+#pragma once
 
+#include "Hypnos-Core/Allocator.hpp"
 #include <map>
-#include "../Allocator.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -14,5 +13,3 @@ using Map = std::map<TKey, TValue, std::less<TKey>, MemoryPoolAllocator<std::pai
 } // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // MAP_HPP

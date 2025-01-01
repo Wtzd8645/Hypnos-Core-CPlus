@@ -1,8 +1,7 @@
-#ifndef UNORDERED_SET_HPP_
-#define UNORDERED_SET_HPP_
+#pragma once
 
+#include "Hypnos-Core/Allocator.hpp"
 #include <unordered_set>
-#include "../Allocator.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -14,5 +13,3 @@ using UnorderedSet = std::unordered_set<T, std::hash<T>, std::equal_to<T>, Memor
 } // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // UNORDERED_SET_HPP_

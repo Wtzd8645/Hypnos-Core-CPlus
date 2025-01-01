@@ -1,5 +1,4 @@
-#ifndef THREAD_HPP_
-#define THREAD_HPP_
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -18,5 +17,3 @@ using UniqueLock = std::unique_lock<T>;
 
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // THREAD_HPP_

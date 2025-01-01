@@ -1,9 +1,8 @@
-#ifndef SLINKED_LIST_HPP_
-#define SLINKED_LIST_HPP_
+#pragma once
 
+#include "Hypnos-Core/Allocator.hpp"
 #include <forward_list>
-#include "../Allocator.hpp"
-// #include "../Cache/ObjectPool.hpp"
+// #include "Hypnos-Core/Cache.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -236,5 +235,3 @@ using SLinkedList = std::forward_list<T, MemoryPoolAllocator<T>>;
 } // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // SLINKED_LIST_HPP_

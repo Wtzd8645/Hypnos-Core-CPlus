@@ -1,7 +1,6 @@
-#ifndef BINARY_READER_HPP_
-#define BINARY_READER_HPP_
+#pragma once
 
-#include "../Type.hpp"
+#include "Hypnos-Core/Type.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -78,5 +77,3 @@ inline void ReadString(string& result, char_ptr buffer, size_t offset)
 } // namespace IO
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // BINARY_READER_HPP_

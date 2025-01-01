@@ -1,7 +1,6 @@
-#ifndef OBJECT_POOL_HPP_
-#define OBJECT_POOL_HPP_
+#pragma once
 
-#include "../Type.hpp"
+#include "Hypnos-Core/Type.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -103,5 +102,3 @@ private:
 } // namespace Cache
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // OBJECT_POOL_HPP_

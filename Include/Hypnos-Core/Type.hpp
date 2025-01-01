@@ -1,5 +1,4 @@
-#ifndef TYPE_HPP_
-#define TYPE_HPP_
+#pragma once
 
 #include <string>
 
@@ -85,5 +84,3 @@ typedef const double* const                  const_float64_ptr_const;
 
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // TYPE_HPP_

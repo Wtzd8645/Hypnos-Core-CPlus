@@ -1,7 +1,6 @@
-#ifndef ZIG_ZAG_HPP_
-#define ZIG_ZAG_HPP_
+#pragma once
 
-#include "../Type.hpp"
+#include "Hypnos-Core/Type.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -33,5 +32,3 @@ struct ZigZag
 } // namespace Encoding
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // ZIG_ZAG_HPP_

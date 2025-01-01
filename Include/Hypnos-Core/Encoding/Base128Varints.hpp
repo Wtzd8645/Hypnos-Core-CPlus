@@ -1,7 +1,6 @@
-#ifndef BASE_128_VARINTS_HPP_
-#define BASE_128_VARINTS_HPP_
+#pragma once
 
-#include "../Type.hpp"
+#include "Hypnos-Core/Type.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -107,5 +106,3 @@ struct Base128Varints
 } // namespace Encoding
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // BASE_128_VARINTS_HPP_

@@ -1,8 +1,7 @@
-#ifndef VECTOR_HPP_
-#define VECTOR_HPP_
+#pragma once
 
+#include "Hypnos-Core/Allocator.hpp"
 #include <vector>
-#include "../Allocator.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -14,5 +13,3 @@ using Vector = std::vector<T, MemoryPoolAllocator<T>>;
 } // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // VECTOR_HPP_

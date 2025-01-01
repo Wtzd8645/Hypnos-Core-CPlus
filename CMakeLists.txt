@@ -21,4 +21,8 @@ else ()
     set(CMAKE_CXX_FLAGS_MINSIZEREL      "-Os -DNDEBUG")
 endif ()
 
-add_subdirectory("Runtime")
+add_library(Hypnos-Core INTERFACE)
+
+set_target_properties(Hypnos-Core PROPERTIES LINKER_LANGUAGE CXX)
+
+target_include_directories(Hypnos-Core INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/Include")

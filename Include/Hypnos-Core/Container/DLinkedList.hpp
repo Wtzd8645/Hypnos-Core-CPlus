@@ -1,8 +1,7 @@
-#ifndef DLINKED_LIST_HPP_
-#define DLINKED_LIST_HPP_
+#pragma once
 
+#include "Hypnos-Core/Allocator.hpp"
 #include <list>
-#include "../Allocator.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -14,5 +13,3 @@ using DLinkedList = std::list<T, MemoryPoolAllocator<T>>;
 } // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // DLINKED_LIST_HPP_

@@ -1,8 +1,6 @@
-#ifndef ARRAY_HPP_
-#define ARRAY_HPP_
+#pragma once
 
 #include <array>
-#include "../Type.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -45,5 +43,3 @@ using Array = std::array<T, length>;
 } // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // ARRAY_HPP_

@@ -1,8 +1,7 @@
-#ifndef UNORDERED_MAP_HPP_
-#define UNORDERED_MAP_HPP_
+#pragma once
 
+#include "Hypnos-Core/Allocator.hpp"
 #include <unordered_map>
-#include "../Allocator.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -14,5 +13,3 @@ using UnorderedMap = std::unordered_map<TKey, TValue, std::hash<TKey>, std::equa
 } // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // UNORDERED_MAP_HPP_

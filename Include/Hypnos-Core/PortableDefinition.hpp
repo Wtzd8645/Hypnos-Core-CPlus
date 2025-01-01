@@ -1,5 +1,4 @@
-#ifndef PORTABLE_DEFINITION_HPP_
-#define PORTABLE_DEFINITION_HPP_
+#pragma once
 
 #if defined(__APPLE__)
 #define GOOGLE_PROTOBUF_OS_APPLE
@@ -38,5 +37,3 @@
 #else
 #define THREAD_LOCAL __thread
 #endif
-
-#endif // PORTABLE_DEFINITION_HPP_

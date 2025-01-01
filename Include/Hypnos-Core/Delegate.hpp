@@ -1,7 +1,4 @@
-#ifndef DELEGATE_HPP_
-#define DELEGATE_HPP_
-
-#include <utility>
+#pragma once
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -169,5 +166,3 @@ private:
 
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // DELEGATE_HPP_

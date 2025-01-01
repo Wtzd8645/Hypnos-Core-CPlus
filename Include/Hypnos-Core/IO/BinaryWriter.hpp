@@ -1,7 +1,6 @@
-#ifndef BINARY_WRITER_HPP_
-#define BINARY_WRITER_HPP_
+#pragma once
 
-#include "../Type.hpp"
+#include "Hypnos-Core/Type.hpp"
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -81,5 +80,3 @@ inline void WriteString(string& value, char_ptr buffer, size_t offset)
 } // namespace IO
 } // namespace Hypnos
 } // namespace Blanketmen
-
-#endif // BINARY_WRITER_HPP_
