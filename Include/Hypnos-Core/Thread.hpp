@@ -5,6 +5,7 @@
 #include <mutex>
 #include <thread>
 
+// TODO: Move to specific namespace.
 namespace Blanketmen {
 namespace Hypnos {
 
