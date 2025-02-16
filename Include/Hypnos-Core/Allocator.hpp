@@ -10,7 +10,7 @@ constexpr size_t MIN_CHUNK_SIZE = sizeof(void*);
 constexpr size_t MAX_CHUNK_SIZE = 128;
 constexpr size_t BLOCK_SIZE = 1024;
 
-static char* FreeChunks[MAX_CHUNK_SIZE / MIN_CHUNK_SIZE];
+static char* free_chunks[MAX_CHUNK_SIZE / MIN_CHUNK_SIZE];
 
 // TODO: Check allocate algorithm.
 template <class T>
@@ -46,8 +46,8 @@ public:
             return reinterpret_cast<T*>(ptr);
         }
 
-        size_t chunkIndex = size / MIN_CHUNK_SIZE;
-        if (FreeChunks[chunkIndex] == nullptr)
+        size_t chunk_index = size / MIN_CHUNK_SIZE;
+        if (free_chunks[chunk_index] == nullptr)
         {
             char* block = reinterpret_cast<char*>(malloc(BLOCK_SIZE));
             if (block == nullptr)
@@ -55,19 +55,19 @@ public:
                 throw std::bad_alloc();
             }
 
-            size_t chunkSize = chunkIndex * MIN_CHUNK_SIZE + MIN_CHUNK_SIZE;
-            size_t chunkNum = BLOCK_SIZE / chunkSize; // NOTE: It will sacrifice a little space.
+            size_t chunk_size = chunk_index * MIN_CHUNK_SIZE + MIN_CHUNK_SIZE;
+            size_t chunk_count = BLOCK_SIZE / chunk_size; // NOTE: It will sacrifice a little space.
             do // Divide block into chunk and concatenate them.
             {
-                *reinterpret_cast<char**>(block) = FreeChunks[chunkIndex];
-                FreeChunks[chunkIndex] = block;
-                block += chunkSize;
-            } while (--chunkNum > 0);
+                *reinterpret_cast<char**>(block) = free_chunks[chunk_index];
+                free_chunks[chunk_index] = block;
+                block += chunk_size;
+            } while (--chunk_count > 0);
         }
 
-        char* ptr = FreeChunks[chunkIndex];
-        FreeChunks[chunkIndex] = *reinterpret_cast<char**>(ptr);
-        // printf("[MemoryPoolAllocator] allocate: n = %d, index = %d, ptr: %p\n", n, chunkIndex, ptr);
+        char* ptr = free_chunks[chunk_index];
+        free_chunks[chunk_index] = *reinterpret_cast<char**>(ptr);
+        // printf("[MemoryPoolAllocator] allocate: n = %d, index = %d, ptr: %p\n", n, chunk_index, ptr);
         return reinterpret_cast<T*>(ptr);
     }
 
@@ -81,9 +81,9 @@ public:
             return;
         }
 
-        size_t chunkIndex = size / MIN_CHUNK_SIZE;
-        *reinterpret_cast<char**>(ptr) = FreeChunks[chunkIndex];
-        FreeChunks[chunkIndex] = reinterpret_cast<char*>(ptr);
+        size_t chunk_index = size / MIN_CHUNK_SIZE;
+        *reinterpret_cast<char**>(ptr) = free_chunks[chunk_index];
+        free_chunks[chunk_index] = reinterpret_cast<char*>(ptr);
     }
 };
 

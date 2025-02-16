@@ -18,47 +18,47 @@ struct Base128Varints
         *(buffer + offset++) = (uint8)(value & 0x7F);
     }
 
-    inline static void WriteUInt64(uint64 value, uint8_ptr buffer, int32& offset)
+    inline static void WriteUInt64(uint64 value, uint8_ptr buf, int32& offset)
     {
         while (value > 127ul)
         {
-            *(buffer + offset++) = (uint8)((value & 0x7F) | 0x80);
+            *(buf + offset++) = (uint8)((value & 0x7F) | 0x80);
             value >>= 7;
         }
-        *(buffer + offset++) = (uint8)(value & 0x7F);
+        *(buf + offset++) = (uint8)(value & 0x7F);
     }
 
-    inline static uint32 ReadUInt32(uint8_ptr buffer, int32& offset)
+    inline static uint32 ReadUInt32(uint8_ptr buf, int32& offset)
     {
-        int32 tmp = *(buffer + offset++);
+        int32 tmp = *(buf + offset++);
         if (tmp < 128)
         {
             return (uint32)tmp;
         }
 
         int32 result = tmp & 0x7f;
-        if ((tmp = *(buffer + offset++)) < 128)
+        if ((tmp = *(buf + offset++)) < 128)
         {
             result |= tmp << 7;
             return (uint32)result;
         }
 
         result |= (tmp & 0x7f) << 7;
-        if ((tmp = *(buffer + offset++)) < 128)
+        if ((tmp = *(buf + offset++)) < 128)
         {
             result |= tmp << 14;
             return (uint32)result;
         }
 
         result |= (tmp & 0x7f) << 14;
-        if ((tmp = *(buffer + offset++)) < 128)
+        if ((tmp = *(buf + offset++)) < 128)
         {
             result |= tmp << 21;
             return (uint32)result;
         }
 
         result |= (tmp & 0x7f) << 21;
-        result |= (tmp = *(buffer + offset++)) << 28;
+        result |= (tmp = *(buf + offset++)) << 28;
         if (tmp < 128)
         {
             return (uint32)result;
@@ -67,7 +67,7 @@ struct Base128Varints
         // If larger than 32 bits, discard the upper 32 bits.
         for (int32 i = 0; i < 5; ++i)
         {
-            if (*(buffer + offset++) < 128)
+            if (*(buf + offset++) < 128)
             {
                 return (uint32)result;
             }
@@ -77,9 +77,9 @@ struct Base128Varints
         return 0ul;
     }
 
-    inline static uint64 ReadUInt64(uint8_ptr buffer, int32& offset)
+    inline static uint64 ReadUInt64(uint8_ptr buf, int32& offset)
     {
-        uint64 result = *(buffer + offset++);
+        uint64 result = *(buf + offset++);
         if (result < 128)
         {
             return result;
@@ -89,7 +89,7 @@ struct Base128Varints
         int32 shift = 7;
         do
         {
-            int32 tmp = *(buffer + offset++);
+            int32 tmp = *(buf + offset++);
             result |= (uint64)(tmp & 0x7F) << shift;
             if (tmp < 128)
             {

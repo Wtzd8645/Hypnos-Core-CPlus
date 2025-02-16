@@ -13,56 +13,52 @@ private:
     struct ObjectNode
     {
         T object;
-        ObjectNode* nextNode = nullptr;
+        ObjectNode* next = nullptr;
     };
 
     struct MemoryChunk
     {
         int32 capacity;
-        ObjectNode* objectNodes;
-        MemoryChunk* nextNode = nullptr;
+        ObjectNode* objects;
+        MemoryChunk* next = nullptr;
 
-        MemoryChunk(int32 objectCount) : capacity(objectCount), objectNodes(new ObjectNode[objectCount])
+        MemoryChunk(int32 count) : capacity(count), objects(new ObjectNode[count])
         {
-            --objectCount;
-            for (int i = 0; i < objectCount; ++i)
+            --count;
+            for (int i = 0; i < count; ++i)
             {
-                ObjectNode* node = objectNodes + i;
-                (node)->nextNode = (node + 1);
+                ObjectNode* node = objects + i;
+                (node)->next = (node + 1);
             }
-            (objectNodes + objectCount)->nextNode = nullptr;
+            (objects + count)->next = nullptr;
         }
 
         ~MemoryChunk()
         {
-            delete[] objectNodes;
+            delete[] objects;
         }
     };
 
-    int32 capacity = 0;
-    MemoryChunk* currentChunk = nullptr;
-    ObjectNode* freeObjects = nullptr;
-
 public:
-    inline int32 Capacity() const noexcept
+    ObjectPool(int32 cap = 8)
     {
-        return capacity;
-    }
-
-    ObjectPool(int32 capacity = 8)
-    {
-        Allocate(capacity > 8 ? capacity : 8);
+        Allocate(cap > 8 ? cap : 8);
     }
 
     ~ObjectPool()
     {
-        MemoryChunk* chunk = currentChunk;
+        MemoryChunk* chunk = currChunk;
         while (chunk != nullptr)
         {
-            MemoryChunk* nextChunk = chunk->nextNode;
+            MemoryChunk* nextChunk = chunk->next;
             delete chunk;
             chunk = nextChunk;
         }
+    }
+
+    inline int32 Capacity() const noexcept
+    {
+        return capacity;
     }
 
     T* Pop()
@@ -73,7 +69,7 @@ public:
         }
 
         T* ptr = reinterpret_cast<T*>(freeObjects);
-        freeObjects = freeObjects->nextNode;
+        freeObjects = freeObjects->next;
         return ptr;
     }
 
@@ -84,18 +80,22 @@ public:
             return;
         }
 
-        reinterpret_cast<ObjectNode*>(obj)->nextNode = freeObjects;
+        reinterpret_cast<ObjectNode*>(obj)->next = freeObjects;
         freeObjects = reinterpret_cast<ObjectNode*>(obj);
     }
 
 private:
-    void Allocate(int32 objCount)
+    int32 capacity = 0;
+    MemoryChunk* currChunk = nullptr;
+    ObjectNode* freeObjects = nullptr;
+
+    void Allocate(int32 count)
     {
-        MemoryChunk* chunk = new MemoryChunk(objCount);
-        capacity += objCount;
-        freeObjects = chunk->objectNodes;
-        chunk->nextNode = currentChunk;
-        currentChunk = chunk;
+        MemoryChunk* chunk = new MemoryChunk(count);
+        capacity += count;
+        freeObjects = chunk->objects;
+        chunk->next = currChunk;
+        currChunk = chunk;
     }
 };
 
