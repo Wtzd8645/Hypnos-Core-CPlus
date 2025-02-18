@@ -6,20 +6,23 @@
 namespace Blanketmen {
 namespace Hypnos {
 
-constexpr size_t MIN_CHUNK_SIZE = sizeof(void*);
-constexpr size_t MAX_CHUNK_SIZE = 128;
-constexpr size_t BLOCK_SIZE = 1024;
+typedef unsigned char* chunk_ptr;
 
-static char* free_chunks[MAX_CHUNK_SIZE / MIN_CHUNK_SIZE];
+static constexpr size_t MIN_CHUNK_SIZE = sizeof(chunk_ptr);
+static constexpr size_t MAX_CHUNK_SIZE = 128;
+static constexpr size_t BLOCK_SIZE = 4096;
 
-// TODO: Check allocate algorithm.
+static chunk_ptr free_chunks [MAX_CHUNK_SIZE / MIN_CHUNK_SIZE];
+
 template <class T>
 class MemoryPoolAllocator
 {
 public:
     typedef T value_type;
 
-    const size_t MAX_OBJECT_SIZE = static_cast<size_t>(-1) / sizeof(T);
+    static constexpr size_t ALIGNED_SIZE = (sizeof(T) + alignof(T) - 1) & ~(alignof(T) - 1);
+    static constexpr size_t MAX_OBJECT_NUM = static_cast<size_t>(-1) / ALIGNED_SIZE;
+    static constexpr size_t MAX_ALLOCATE_NUM = MAX_CHUNK_SIZE / ALIGNED_SIZE;
 
     MemoryPoolAllocator() noexcept { }
 
@@ -29,61 +32,56 @@ public:
 
     T* allocate(const size_t n) const
     {
-        if (n == 0 || n > MAX_OBJECT_SIZE)
+        if (n == 0 || n > MAX_OBJECT_NUM)
         {
             throw std::bad_array_new_length();
         }
 
-        size_t size = n * sizeof(T);
+        size_t size = n * ALIGNED_SIZE;
         if (size > MAX_CHUNK_SIZE)
         {
             // printf("[MemoryPoolAllocator] allocate: %d\n", size);
-            void* const ptr = malloc(size);
-            if (ptr == nullptr)
-            {
-                throw std::bad_alloc();
-            }
-            return reinterpret_cast<T*>(ptr);
+            void* const chunk = malloc(size);
+            return chunk != nullptr ? static_cast<T*>(chunk) : throw std::bad_alloc();
         }
 
-        size_t chunk_index = size / MIN_CHUNK_SIZE;
-        if (free_chunks[chunk_index] == nullptr)
+        size_t bucket = (size - 1) / MIN_CHUNK_SIZE;
+        if (free_chunks[bucket] == nullptr)
         {
-            char* block = reinterpret_cast<char*>(malloc(BLOCK_SIZE));
+            chunk_ptr block = static_cast<chunk_ptr>(malloc(BLOCK_SIZE));
             if (block == nullptr)
             {
                 throw std::bad_alloc();
             }
 
-            size_t chunk_size = chunk_index * MIN_CHUNK_SIZE + MIN_CHUNK_SIZE;
+            size_t chunk_size = (bucket + 1) * MIN_CHUNK_SIZE;
             size_t chunk_count = BLOCK_SIZE / chunk_size; // NOTE: It will sacrifice a little space.
             do // Divide block into chunk and concatenate them.
             {
-                *reinterpret_cast<char**>(block) = free_chunks[chunk_index];
-                free_chunks[chunk_index] = block;
+                *reinterpret_cast<chunk_ptr*>(block) = free_chunks[bucket];
+                free_chunks[bucket] = block;
                 block += chunk_size;
             } while (--chunk_count > 0);
         }
 
-        char* ptr = free_chunks[chunk_index];
-        free_chunks[chunk_index] = *reinterpret_cast<char**>(ptr);
-        // printf("[MemoryPoolAllocator] allocate: n = %d, index = %d, ptr: %p\n", n, chunk_index, ptr);
-        return reinterpret_cast<T*>(ptr);
+        chunk_ptr chunk = free_chunks[bucket];
+        free_chunks[bucket] = *reinterpret_cast<chunk_ptr*>(chunk);
+        // printf("[MemoryPoolAllocator] allocate: n = %d, index = %d, ptr: %p\n", n, bucket, chunk);
+        return reinterpret_cast<T*>(chunk);
     }
 
-    void deallocate(T* const ptr, size_t n) const noexcept
+    void deallocate(T* const chunk, size_t n) const noexcept
     {
-        // printf("[MemoryPoolAllocator] deallocate: n: %d, ptr: %p\n", n, ptr);
-        size_t size = n * sizeof(T);
-        if (size > MAX_CHUNK_SIZE)
+        // printf("[MemoryPoolAllocator] deallocate: n: %d, ptr: %p\n", n, chunk);
+        if (n > MAX_ALLOCATE_NUM)
         {
-            free(ptr);
+            free(chunk);
             return;
         }
 
-        size_t chunk_index = size / MIN_CHUNK_SIZE;
-        *reinterpret_cast<char**>(ptr) = free_chunks[chunk_index];
-        free_chunks[chunk_index] = reinterpret_cast<char*>(ptr);
+        size_t bucket = (n * ALIGNED_SIZE - 1) / MIN_CHUNK_SIZE;
+        *reinterpret_cast<chunk_ptr*>(chunk) = free_chunks[bucket];
+        free_chunks[bucket] = reinterpret_cast<chunk_ptr>(chunk);
     }
 };
 
