@@ -2,20 +2,10 @@
 
 #include <cstddef>
 #include <string>
+#include <memory>
 
 namespace Blanketmen {
 namespace Hypnos {
-
-// Pre-defined Compiler Macros: https://sourceforge.net/p/predef/wiki/OperatingSystems/
-#if defined _WIN32      // Windows x86 & x64 (MSDN Predefined macros)
-
-#elif defined __APPLE__ // Mac OS X (Defined by GNU C and Intel C++)
-
-#elif defined __linux__ // GNU/Linux and Android
-
-#elif defined __unix__  // All UNIX (Not all compilers defines these macros, e.g. the xlC or the DEC C/C++ compiler)
-
-#endif
 
 // DataModel: https://en.cppreference.com/w/cpp/language/types
 // NOTE: Signedness char represents a character, and shouldn't care whether it is signed or unsigned.
@@ -32,6 +22,15 @@ typedef unsigned long long int    uint64;
 typedef float                     float32;
 typedef double                    float64;
 typedef std::string               string;
+
+template<typename T>
+using unique_ptr = std::unique_ptr<T>;
+
+template<typename T>
+using shared_ptr = std::shared_ptr<T>;
+
+template<typename T>
+using weak_ptr = std::weak_ptr<T>;
 
 } // namespace Hypnos
 } // namespace Blanketmen

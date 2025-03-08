@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Hypnos-Core/Type.hpp"
+#include "Hypnos-Core/Types.hpp"
 #include <atomic>
 #include <cstddef>
 #include <forward_list>

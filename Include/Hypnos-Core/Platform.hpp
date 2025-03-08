@@ -1,5 +1,16 @@
 #pragma once
 
+// Pre-defined Compiler Macros: https://sourceforge.net/p/predef/wiki/OperatingSystems/
+#if defined _WIN32      // Windows x86 & x64 (MSDN Predefined macros)
+
+#elif defined __APPLE__ // Mac OS X (Defined by GNU C and Intel C++)
+
+#elif defined __linux__ // GNU/Linux and Android
+
+#elif defined __unix__  // All UNIX (Not all compilers defines these macros, e.g. the xlC or the DEC C/C++ compiler)
+
+#endif
+
 #if defined(__APPLE__)
 #define GOOGLE_PROTOBUF_OS_APPLE
 #include <Availability.h>
