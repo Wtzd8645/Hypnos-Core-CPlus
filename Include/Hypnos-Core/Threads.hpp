@@ -13,7 +13,7 @@ using ConditionVariable = std::condition_variable;
 using Mutex = std::mutex;
 using Thread = std::thread;
 
-template<class T>
+template<typename T>
 using UniqueLock = std::unique_lock<T>;
 
 } // namespace Hypnos

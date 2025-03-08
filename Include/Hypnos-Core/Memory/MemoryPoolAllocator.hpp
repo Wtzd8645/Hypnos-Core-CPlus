@@ -1,10 +1,12 @@
 ﻿#pragma once
 
+#include "Memory.hpp"
 #include <cstdlib>
 #include <new>
 
 namespace Blanketmen {
 namespace Hypnos {
+namespace Memory {
 
 typedef unsigned char* chunk_ptr;
 
@@ -12,25 +14,44 @@ static constexpr size_t MIN_CHUNK_SIZE = sizeof(chunk_ptr);
 static constexpr size_t MAX_CHUNK_SIZE = 128;
 static constexpr size_t BLOCK_SIZE = 4096;
 
-static chunk_ptr free_chunks [MAX_CHUNK_SIZE / MIN_CHUNK_SIZE];
+static chunk_ptr free_chunk_buckets[MAX_CHUNK_SIZE / MIN_CHUNK_SIZE];
 
 template <class T>
 class MemoryPoolAllocator
 {
 public:
     typedef T value_type;
+    typedef T* pointer;
+    typedef const T* const_pointer;
+    typedef T& reference;
+    typedef const T& const_reference;
+    typedef std::size_t size_type;
+    typedef std::ptrdiff_t difference_type;
 
-    static constexpr size_t ALIGNED_SIZE = (sizeof(T) + alignof(T) - 1) & ~(alignof(T) - 1);
+    template <class U>
+    struct rebind
+    {
+        typedef MemoryPoolAllocator<U> other;
+    };
+
+    static constexpr size_t ALIGNED_SIZE = AlignUp(sizeof(T), alignof(T));
     static constexpr size_t MAX_OBJECT_NUM = static_cast<size_t>(-1) / ALIGNED_SIZE;
     static constexpr size_t MAX_ALLOCATE_NUM = MAX_CHUNK_SIZE / ALIGNED_SIZE;
 
     MemoryPoolAllocator() noexcept { }
-
+    MemoryPoolAllocator(const MemoryPoolAllocator& other) noexcept { }
     template<class U> MemoryPoolAllocator(const MemoryPoolAllocator<U>&) noexcept { }
+
     template<class U> bool operator==(const MemoryPoolAllocator<U>&) const noexcept { return true; }
     template<class U> bool operator!=(const MemoryPoolAllocator<U>&) const noexcept { return false; }
 
-    T* allocate(const size_t n) const
+    size_type max_size() const noexcept { return size_type(-1) / sizeof(T); }
+
+    pointer address(reference x) const noexcept { return std::addressof(x); }
+
+    const_pointer address(const_reference x) const noexcept { return std::addressof(x); }
+
+    pointer allocate(size_type n, const void* hint = 0) const
     {
         if (n == 0 || n > MAX_OBJECT_NUM)
         {
@@ -46,7 +67,7 @@ public:
         }
 
         size_t bucket = (size - 1) / MIN_CHUNK_SIZE;
-        if (free_chunks[bucket] == nullptr)
+        if (free_chunk_buckets[bucket] == nullptr)
         {
             chunk_ptr block = static_cast<chunk_ptr>(malloc(BLOCK_SIZE));
             if (block == nullptr)
@@ -58,19 +79,20 @@ public:
             size_t chunk_count = BLOCK_SIZE / chunk_size; // NOTE: It will sacrifice a little space.
             do // Divide block into chunk and concatenate them.
             {
-                *reinterpret_cast<chunk_ptr*>(block) = free_chunks[bucket];
-                free_chunks[bucket] = block;
+                *reinterpret_cast<chunk_ptr*>(block) = free_chunk_buckets[bucket];
+                free_chunk_buckets[bucket] = block;
                 block += chunk_size;
-            } while (--chunk_count > 0);
+            }
+            while (--chunk_count > 0);
         }
 
-        chunk_ptr chunk = free_chunks[bucket];
-        free_chunks[bucket] = *reinterpret_cast<chunk_ptr*>(chunk);
+        chunk_ptr chunk = free_chunk_buckets[bucket];
+        free_chunk_buckets[bucket] = *reinterpret_cast<chunk_ptr*>(chunk);
         // printf("[MemoryPoolAllocator] allocate: n = %d, index = %d, ptr: %p\n", n, bucket, chunk);
         return reinterpret_cast<T*>(chunk);
     }
 
-    void deallocate(T* const chunk, size_t n) const noexcept
+    void deallocate(pointer chunk, size_type n) const noexcept
     {
         // printf("[MemoryPoolAllocator] deallocate: n: %d, ptr: %p\n", n, chunk);
         if (n > MAX_ALLOCATE_NUM)
@@ -80,11 +102,16 @@ public:
         }
 
         size_t bucket = (n * ALIGNED_SIZE - 1) / MIN_CHUNK_SIZE;
-        *reinterpret_cast<chunk_ptr*>(chunk) = free_chunks[bucket];
-        free_chunks[bucket] = reinterpret_cast<chunk_ptr>(chunk);
+        *reinterpret_cast<chunk_ptr*>(chunk) = free_chunk_buckets[bucket];
+        free_chunk_buckets[bucket] = reinterpret_cast<chunk_ptr>(chunk);
     }
+
+    void construct(pointer p, const_reference val) { new(static_cast<void*>(p)) T(val); }
+
+    void destroy(pointer p) { p->~T(); }
 };
 
+} // namespace Memory
 } // namespace Hypnos
 } // namespace Blanketmen
 

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "Hypnos-Core/Memory/MemoryPoolAllocator.hpp"
-#include <unordered_set>
+#include <forward_list>
 
 namespace Blanketmen {
 namespace Hypnos {
 namespace Container {
 
 template<typename T>
-using UnorderedSet = std::unordered_set<T, std::hash<T>, std::equal_to<T>, Memory::MemoryPoolAllocator<T>>;
+using ForwardList = std::forward_list<T, Memory::MemoryPoolAllocator<T>>;
 
 } // namespace Container
 } // namespace Hypnos

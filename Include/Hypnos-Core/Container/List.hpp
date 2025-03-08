@@ -1,14 +1,14 @@
 #pragma once
 
-#include "Hypnos-Core/Allocator.hpp"
+#include "Hypnos-Core/Memory/MemoryPoolAllocator.hpp"
 #include <vector>
 
 namespace Blanketmen {
 namespace Hypnos {
 namespace Container {
 
-template<class T>
-using Vector = std::vector<T, MemoryPoolAllocator<T>>;
+template<typename T>
+using List = std::vector<T, Memory::MemoryPoolAllocator<T>>;
 
 } // namespace Container
 } // namespace Hypnos
