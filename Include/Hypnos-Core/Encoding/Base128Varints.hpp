@@ -8,7 +8,7 @@ namespace Encoding {
 
 struct Base128Varints
 {
-    inline static void WriteUInt32(uint32 value, uint8_ptr buffer, int32& offset)
+    inline static void WriteUInt32(uint32 value, uint8* buffer, int32& offset)
     {
         while (value > 127u)
         {
@@ -18,7 +18,7 @@ struct Base128Varints
         *(buffer + offset++) = (uint8)(value & 0x7F);
     }
 
-    inline static void WriteUInt64(uint64 value, uint8_ptr buf, int32& offset)
+    inline static void WriteUInt64(uint64 value, uint8* buf, int32& offset)
     {
         while (value > 127ul)
         {
@@ -28,7 +28,7 @@ struct Base128Varints
         *(buf + offset++) = (uint8)(value & 0x7F);
     }
 
-    inline static uint32 ReadUInt32(uint8_ptr buf, int32& offset)
+    inline static uint32 ReadUInt32(uint8* buf, int32& offset)
     {
         int32 tmp = *(buf + offset++);
         if (tmp < 128)
@@ -77,7 +77,7 @@ struct Base128Varints
         return 0ul;
     }
 
-    inline static uint64 ReadUInt64(uint8_ptr buf, int32& offset)
+    inline static uint64 ReadUInt64(uint8* buf, int32& offset)
     {
         uint64 result = *(buf + offset++);
         if (result < 128)
