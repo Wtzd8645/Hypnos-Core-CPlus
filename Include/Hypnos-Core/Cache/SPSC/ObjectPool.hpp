@@ -5,6 +5,7 @@
 namespace Blanketmen {
 namespace Hypnos {
 namespace Cache {
+namespace SPSC {
 
 template<typename T>
 class ObjectPool
@@ -30,14 +31,15 @@ public:
 
     inline T* Pop()
     {
-        if (free_nodes == nullptr)
+        object_node* head = free_nodes.load(std::memory_order_acquire);
+        if (head == nullptr)
         {
             Allocate(capacity);
+            head = free_nodes.load(std::memory_order_acquire);
         }
 
-        T* ptr = reinterpret_cast<T*>(free_nodes);
-        free_nodes = free_nodes->next;
-        return ptr;
+        while (!free_nodes.compare_exchange_weak(head, head->next, std::memory_order_acquire, std::memory_order_relaxed)) { }
+        return reinterpret_cast<T*>(head);
     }
 
     inline void Push(T* obj) // TODO: Auto recycle and handle outside object push.
@@ -47,8 +49,13 @@ public:
             return;
         }
 
-        reinterpret_cast<object_node*>(obj)->next = free_nodes;
-        free_nodes = reinterpret_cast<object_node*>(obj);
+        object_node* node = reinterpret_cast<object_node*>(obj);
+        object_node* head = free_nodes.load(std::memory_order_relaxed);
+        do
+        { 
+            node->next = head;
+        }
+        while (!free_nodes.compare_exchange_weak(head, node, std::memory_order_release, std::memory_order_relaxed));
     }
 
 private:
@@ -66,7 +73,7 @@ private:
         memory_chunk(int32 count) : nodes(new object_node[count])
         {
             --count;
-            for (int i = 0; i < count; ++i)
+            for (int i = 0; i < count - 1; ++i)
             {
                 nodes[i].next = &nodes[i + 1];
             }
@@ -81,20 +88,28 @@ private:
 
     int32 capacity = 0;
     memory_chunk* chunks = nullptr;
-    object_node* free_nodes = nullptr;
+    std::atomic<object_node*> free_nodes = nullptr;
 
     void Allocate(int32 count)
     {
         memory_chunk* chunk = new memory_chunk(count);
         capacity += count;
-        
+
         chunk->next = chunks;
         chunks = chunk;
 
-        free_nodes = chunk->nodes;
+        object_node* new_head = chunk->nodes;
+        object_node* tail = &chunk->nodes[count - 1];
+        object_node* head = free_nodes.load(std::memory_order_relaxed);
+        do
+        {
+            tail->next = head;
+        }
+        while (!free_nodes.compare_exchange_weak(head, new_head, std::memory_order_release, std::memory_order_relaxed));
     }
 };
 
+} // namespace SPSC
 } // namespace Cache
 } // namespace Hypnos
 } // namespace Blanketmen
