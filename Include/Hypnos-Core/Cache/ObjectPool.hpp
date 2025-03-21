@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Hypnos-Core/Types.hpp"
+#include <cstdlib>
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -40,7 +41,7 @@ public:
         return ptr;
     }
 
-    inline void Push(T* obj) // TODO: Auto recycle and handle outside object push.
+    inline void Push(T* obj)
     {
         if (obj == nullptr)
         {
@@ -52,21 +53,22 @@ public:
     }
 
 private:
-    struct alignas(alignof(T)) object_node
+    union object_node
     {
+        object_node* next;
         T object;
-        object_node* next = nullptr;
     };
 
     struct memory_chunk
     {
+        memory_chunk* next;
         object_node* nodes;
-        memory_chunk* next = nullptr;
 
-        memory_chunk(int32 count) : nodes(new object_node[count])
+        memory_chunk(int32 count)
         {
-            --count;
-            for (int i = 0; i < count; ++i)
+            nodes = static_cast<object_node*>(malloc(count * sizeof(object_node)));
+            count--;
+            for (int i = 0; i < count; i++)
             {
                 nodes[i].next = &nodes[i + 1];
             }
@@ -75,7 +77,7 @@ private:
 
         ~memory_chunk()
         {
-            delete[] nodes;
+            free(nodes);
         }
     };
 

@@ -7,12 +7,12 @@ namespace Blanketmen {
 namespace Hypnos {
 namespace Cache {
 
-class FixedMmapBufferPool
+class IndexedMmapBufferPool
 {
 public:
     static constexpr size_t MIN_BUFFER_SIZE = 1024;
 
-    FixedMmapBufferPool(int32 size, int32 flags, int32 cap = 8)
+    IndexedMmapBufferPool(int32 size, int32 flags, int32 cap = 8)
     {
         if (size < MIN_BUFFER_SIZE)
         {
@@ -24,7 +24,7 @@ public:
         Allocate(cap > 8 ? cap : 8);
     }
 
-    ~FixedMmapBufferPool()
+    ~IndexedMmapBufferPool()
     {
         for (auto& block : blocks)
         {

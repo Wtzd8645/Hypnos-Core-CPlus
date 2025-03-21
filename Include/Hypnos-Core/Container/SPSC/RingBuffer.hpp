@@ -16,19 +16,19 @@ public:
 
     RingBuffer(size_t cap) : buffer(cap), capacity(cap), head(0), tail(0) { } // TODO: Limit capacity.
 
-    size_t Size() const
+    inline size_t Size() const
     {
         size_t curr_head = head.load(std::memory_order_acquire);
         size_t curr_tail = tail.load(std::memory_order_acquire);
         return (curr_head + capacity - curr_tail) % capacity;
     }
 
-    bool IsEmpty() const noexcept
+    inline bool IsEmpty() const noexcept
     {
         return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire);
     }
 
-    bool IsFull() const noexcept
+    inline bool IsFull() const noexcept
     {
         return (head.load(std::memory_order_acquire) + 1) % capacity == tail.load(std::memory_order_acquire);
     }

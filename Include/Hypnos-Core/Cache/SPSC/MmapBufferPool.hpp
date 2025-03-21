@@ -23,6 +23,7 @@ public:
         {
             size = MIN_BUFFER_SIZE;
         }
+
         this->size = (size + alignof(uint8*) - 1) & ~(alignof(uint8*) - 1);
         mmap_flags |= flags;
         Allocate(cap > 8 ? cap : 8);
