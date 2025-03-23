@@ -1,7 +1,5 @@
 #pragma once
 
-#include <utility>
-
 namespace Blanketmen {
 namespace Hypnos {
 
@@ -12,8 +10,6 @@ public:
     class FunctionBase
     {
     public:
-        FunctionBase* next = nullptr;
-
         virtual ~FunctionBase() { }
 
         virtual void operator()(TArgs&&... args) const = 0;
@@ -52,35 +48,27 @@ public:
         }
     };
 
-    Delegate() : head(nullptr) { }
+    Delegate() : function(nullptr) { }
+    Delegate(void(* const funcPtr)(TArgs...)) : function(new StaticFunction(funcPtr)) { }
+    template <typename TObj>
+    Delegate(TObj* const objPtr, void(TObj::* const mtdPtr)(TArgs...)) : function(new ObjectFunction<TObj>(objPtr, mtdPtr)) { }
 
     Delegate(const Delegate&) = delete;
+    Delegate(Delegate&& other) noexcept : function(other.function) { other.function = nullptr; }
 
     ~Delegate()
     {
-        Clear();
-    }
-
-    void Clear()
-    {
-        FunctionBase* curr = head;
-        FunctionBase* next = nullptr;
-        while (curr != nullptr)
+        if (function != nullptr)
         {
-            next = curr->next;
-            delete curr;
-            curr = next;
+            delete function;
         }
-        head = nullptr;
     }
 
     void operator()(TArgs... args) const
     {
-        FunctionBase* curr = head;
-        while (curr != nullptr)
+        if (function != nullptr)
         {
-            (*curr)(std::forward<TArgs>(args)...);
-            curr = curr->next;
+            (*function)(std::forward<TArgs>(args)...);
         }
     }
 
@@ -88,82 +76,33 @@ public:
 
     Delegate& operator=(void(* const funcPtr)(TArgs...))
     {
-        Clear();
-        head = new StaticFunction(funcPtr);
-        return *this;
-    }
-
-    Delegate& operator+=(void(* const funcPtr)(TArgs...))
-    {
-        FunctionBase** curr = &head;
-        while (*curr != nullptr)
+        if (function != nullptr)
         {
-            curr = &(*curr)->next;
+            delete function;
+            function = nullptr;
         }
-        *curr = new StaticFunction(funcPtr);
-        return *this;
-    }
 
-    Delegate& operator-=(void(* const funcPtr)(TArgs...))
-    {
-        FunctionBase** curr = &head;
-        while (*curr != nullptr)
-        {
-            StaticFunction* func = dynamic_cast<StaticFunction*>(*curr);
-            if (func->functionPtr != funcPtr)
-            {
-                curr = &(*curr)->next;
-                continue;
-            }
-
-            *curr = (*curr)->next;
-            delete func;
-            return *this;
-        }
+        function = new StaticFunction(funcPtr);
         return *this;
     }
 
     template<typename TObj>
     void Assign(typename ObjectFunction<TObj>::ObjectPtr objPtr, typename ObjectFunction<TObj>::MethodPtr mtdPtr)
     {
-        Clear();
-        head = new ObjectFunction<TObj>(objPtr, mtdPtr);
-    }
-
-    template<typename TObj>
-    void Add(typename ObjectFunction<TObj>::ObjectPtr objPtr, typename ObjectFunction<TObj>::MethodPtr mtdPtr)
-    {
-        FunctionBase** curr = &head;
-        while (*curr != nullptr)
+        if (function != nullptr)
         {
-            curr = &(*curr)->next;
+            delete function;
+            function = nullptr;
         }
-        *curr = new ObjectFunction<TObj>(objPtr, mtdPtr);
-    }
 
-    template<typename TObj>
-    void Remove(typename ObjectFunction<TObj>::ObjectPtr objPtr, typename ObjectFunction<TObj>::MethodPtr mtdPtr)
-    {
-        FunctionBase** curr = &head;
-        while (*curr != nullptr)
+        if (objPtr != nullptr && mtdPtr != nullptr)
         {
-            ObjectFunction<TObj>* func = dynamic_cast<ObjectFunction<TObj>*>(*curr);
-            if (func == nullptr
-                || func->objectPtr != objPtr
-                || func->methodPtr != mtdPtr)
-            {
-                curr = &(*curr)->next;
-                continue;
-            }
-
-            *curr = (*curr)->next;
-            delete func;
-            return;
+            function = new ObjectFunction<TObj>(objPtr, mtdPtr);
         }
     }
 
 private:
-    FunctionBase* head = nullptr;
+    FunctionBase* function;
 };
 
 } // namespace Hypnos

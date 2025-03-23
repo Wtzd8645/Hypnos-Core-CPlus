@@ -1,18 +1,11 @@
 #pragma once
 
+#include "EventHandlerBase.hpp"
 #include "Hypnos-Core/Container/UnorderedMap.hpp"
 
 // TODO: Decouple from Container::UnorderedMap.
 namespace Blanketmen {
 namespace Hypnos {
-
-template<typename... T>
-class EventHandler
-{
-public:
-    virtual ~EventHandler() = default;
-    virtual void Handle(T... args) = 0;
-};
 
 template<typename TKey, typename... TArgs>
 class EventDispatcher
@@ -20,7 +13,7 @@ class EventDispatcher
 public:
     virtual ~EventDispatcher() = default;
 
-    void Register(TKey id, EventHandler<TArgs...>* handler)
+    void Register(TKey id, EventHandlerBase<TArgs...>* handler)
     {
         handlerMap[id] = handler;
     }
@@ -41,7 +34,7 @@ protected:
     }
 
 private:
-    Container::UnorderedMap<TKey, EventHandler<TArgs...>*> handlerMap;
+    Container::UnorderedMap<TKey, EventHandlerBase<TArgs...>*> handlerMap;
 };
 
 } // namespace Hypnos
