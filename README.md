@@ -1,1 +1,1 @@
-# Hypnos-Core-CPlus
+# Hypnos-Kernel-CPlus
