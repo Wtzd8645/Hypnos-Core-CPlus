@@ -11,27 +11,27 @@ template<typename T>
 class ObjectPool
 {
 public:
-    ObjectPool(int32 cap = 8)
+    ObjectPool(size_t cap = 8)
     {
         Allocate(cap > 8 ? cap : 8);
     }
 
     ~ObjectPool()
     {
-        memory_chunk* chunk = chunks;
+        MemoryChunk* chunk = chunks;
         while (chunk != nullptr)
         {
-            memory_chunk* next = chunk->next;
+            MemoryChunk* next = chunk->next;
             delete chunk;
             chunk = next;
         }
     }
 
-    inline int32 Capacity() const noexcept { return capacity; }
+    inline size_t Capacity() const noexcept { return capacity; }
 
-    inline T* Pop()
+    inline T* Acquire()
     {
-        object_node* head = free_nodes.load(std::memory_order_acquire);
+        ObjectNode* head = free_nodes.load(std::memory_order_acquire);
         if (head == nullptr)
         {
             Allocate(capacity);
@@ -42,15 +42,15 @@ public:
         return reinterpret_cast<T*>(head);
     }
 
-    inline void Push(T* obj) // TODO: Auto recycle and handle outside object push.
+    inline void Release(T* obj)
     {
         if (obj == nullptr)
         {
             return;
         }
 
-        object_node* node = reinterpret_cast<object_node*>(obj);
-        object_node* head = free_nodes.load(std::memory_order_relaxed);
+        ObjectNode* node = reinterpret_cast<ObjectNode*>(obj);
+        ObjectNode* head = free_nodes.load(std::memory_order_relaxed);
         do
         { 
             node->next = head;
@@ -59,48 +59,50 @@ public:
     }
 
 private:
-    struct alignas(alignof(T)) object_node
+    struct alignas(alignof(T)) ObjectNode
     {
         T object;
-        object_node* next = nullptr;
+        ObjectNode* next = nullptr;
     };
 
-    struct memory_chunk
+    struct MemoryChunk
     {
-        object_node* nodes;
-        memory_chunk* next = nullptr;
+        ObjectNode* nodes;
+        MemoryChunk* next;
 
-        memory_chunk(int32 count) : nodes(new object_node[count])
+        MemoryChunk(size_t count) :
+            nodes(static_cast<ObjectNode*>(std::aligned_alloc(alignof(ObjectNode), count * sizeof(ObjectNode)))),
+            next(nullptr)
         {
-            --count;
-            for (int i = 0; i < count - 1; ++i)
+            count--;
+            for (size_t i = 0; i < count - 1; ++i)
             {
                 nodes[i].next = &nodes[i + 1];
             }
             (nodes + count)->next = nullptr;
         }
 
-        ~memory_chunk()
+        ~MemoryChunk()
         {
-            delete[] nodes;
+            std::free(nodes);
         }
     };
 
-    int32 capacity = 0;
-    memory_chunk* chunks = nullptr;
-    std::atomic<object_node*> free_nodes = nullptr;
+    size_t capacity = 0;
+    MemoryChunk* chunks = nullptr;
+    std::atomic<ObjectNode*> free_nodes = nullptr;
 
-    void Allocate(int32 count)
+    void Allocate(size_t count)
     {
-        memory_chunk* chunk = new memory_chunk(count);
+        MemoryChunk* chunk = new MemoryChunk(count);
         capacity += count;
 
         chunk->next = chunks;
         chunks = chunk;
 
-        object_node* new_head = chunk->nodes;
-        object_node* tail = &chunk->nodes[count - 1];
-        object_node* head = free_nodes.load(std::memory_order_relaxed);
+        ObjectNode* new_head = chunk->nodes;
+        ObjectNode* tail = &chunk->nodes[count - 1];
+        ObjectNode* head = free_nodes.load(std::memory_order_relaxed);
         do
         {
             tail->next = head;

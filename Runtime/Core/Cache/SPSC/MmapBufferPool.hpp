@@ -2,7 +2,6 @@
 
 #include "Platform.hpp"
 #include <atomic>
-#include <cstddef>
 #include <forward_list>
 #include <stdexcept>
 #include <sys/mman.h>
@@ -17,14 +16,14 @@ class MmapBufferPool
 public:
     static constexpr size_t MIN_BUFFER_SIZE = 1024;
 
-    MmapBufferPool(int32 size, int32 flags, int32 cap = 8)
+    MmapBufferPool(size_t buf_size, size_t flags, size_t cap = 8)
     {
-        if (size < MIN_BUFFER_SIZE)
+        if (buf_size < MIN_BUFFER_SIZE)
         {
-            size = MIN_BUFFER_SIZE;
+            buf_size = MIN_BUFFER_SIZE;
         }
 
-        this->size = (size + alignof(uint8*) - 1) & ~(alignof(uint8*) - 1);
+        this->buf_size = (buf_size + alignof(uint8*) - 1) & ~(alignof(uint8*) - 1);
         mmap_flags |= flags;
         Allocate(cap > 8 ? cap : 8);
     }
@@ -37,9 +36,9 @@ public:
         }
     }
 
-    inline int32 Capacity() const noexcept { return capacity; }
+    inline size_t Capacity() const noexcept { return capacity; }
 
-    inline uint8* Pop()
+    inline uint8* Acquire()
     {
         uint8* head = free_buffer.load(std::memory_order_acquire);
         if (head == nullptr)
@@ -56,7 +55,7 @@ public:
         return head;
     }
 
-    inline void Push(uint8* buf) noexcept
+    inline void Release(uint8* buf) noexcept
     {
         if (buf == nullptr)
         {
@@ -72,23 +71,23 @@ public:
     }
 
 private:
-    struct mmap_block
+    struct MmapBlock
     {
         uint8* ptr;
         size_t size;
     };
 
-    int32 size = 0;
+    size_t buf_size = 0;
     int32 mmap_prot = PROT_READ | PROT_WRITE;
     int32 mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
-    int32 capacity = 0;
+    size_t capacity = 0;
 
-    std::forward_list<mmap_block> blocks;
+    std::forward_list<MmapBlock> blocks;
     std::atomic<uint8*> free_buffer = nullptr;
 
-    void Allocate(uint32 count)
+    void Allocate(size_t count)
     {
-        size_t mmap_size = size * count;
+        size_t mmap_size = buf_size * count;
         uint8* ptr = static_cast<uint8*>(mmap(nullptr, mmap_size, mmap_prot, mmap_flags, -1, 0));
         if (ptr == MAP_FAILED)
         {
@@ -100,9 +99,9 @@ private:
 
         uint8* new_head = ptr;
         uint8* tail = new_head;
-        for (int32 i = 1; i < count; ++i)
+        for (size_t i = 1; i < count; ++i)
         {
-            uint8* next = tail + size;
+            uint8* next = tail + buf_size;
             *reinterpret_cast<uint8**>(tail) = next;
             tail = next;
         }

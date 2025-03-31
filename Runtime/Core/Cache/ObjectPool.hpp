@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Platform.hpp"
-#include <cstdlib>
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -11,25 +10,25 @@ template<typename T>
 class ObjectPool
 {
 public:
-    ObjectPool(int32 cap = 8)
+    ObjectPool(size_t cap = 8)
     {
         Allocate(cap > 8 ? cap : 8);
     }
 
     ~ObjectPool()
     {
-        memory_chunk* chunk = chunks;
+        MemoryChunk* chunk = chunks;
         while (chunk != nullptr)
         {
-            memory_chunk* next = chunk->next;
+            MemoryChunk* next = chunk->next;
             delete chunk;
             chunk = next;
         }
     }
 
-    inline int32 Capacity() const noexcept { return capacity; }
+    inline size_t Capacity() const noexcept { return capacity; }
 
-    inline T* Pop()
+    inline T* Acquire()
     {
         if (free_nodes == nullptr)
         {
@@ -41,53 +40,79 @@ public:
         return ptr;
     }
 
-    inline void Push(T* obj)
+    inline void Release(T* obj)
     {
         if (obj == nullptr)
         {
             return;
         }
 
-        reinterpret_cast<object_node*>(obj)->next = free_nodes;
-        free_nodes = reinterpret_cast<object_node*>(obj);
+        reinterpret_cast<ObjectNode*>(obj)->next = free_nodes;
+        free_nodes = reinterpret_cast<ObjectNode*>(obj);
+    }
+
+    template<typename... Args>
+    inline T* Emplace(Args&&... args)
+    {
+        if (free_nodes == nullptr)
+        {
+            Allocate(capacity);
+        }
+
+        ObjectNode* node = free_nodes;
+        free_nodes = free_nodes->next;
+        return new (&node->object) T(std::forward<Args>(args)...);
+    }
+
+    inline void Destroy(T* obj)
+    {
+        if (obj == nullptr)
+        {
+            return;
+        }
+
+        obj->~T();
+        reinterpret_cast<ObjectNode*>(obj)->next = free_nodes;
+        free_nodes = reinterpret_cast<ObjectNode*>(obj);
     }
 
 private:
-    union object_node
+    union ObjectNode
     {
-        object_node* next;
         T object;
+        ObjectNode* next;
     };
 
-    struct memory_chunk
+    struct MemoryChunk
     {
-        memory_chunk* next;
-        object_node* nodes;
+        ObjectNode* nodes;
+        MemoryChunk* next;
 
-        memory_chunk(int32 count)
+        MemoryChunk(size_t count) :
+            nodes(static_cast<ObjectNode*>(std::aligned_alloc(alignof(ObjectNode), count * sizeof(ObjectNode)))),
+            next(nullptr)
         {
-            nodes = static_cast<object_node*>(malloc(count * sizeof(object_node)));
             count--;
-            for (int i = 0; i < count; i++)
+            for (size_t i = 0; i < count; i++)
             {
                 nodes[i].next = &nodes[i + 1];
             }
             (nodes + count)->next = nullptr;
         }
 
-        ~memory_chunk()
+        ~MemoryChunk()
         {
-            free(nodes);
+            std::free(nodes);
         }
     };
 
-    int32 capacity = 0;
-    memory_chunk* chunks = nullptr;
-    object_node* free_nodes = nullptr;
+    size_t capacity = 0;
+    MemoryChunk* chunks = nullptr;
+    ObjectNode* free_nodes = nullptr;
 
-    void Allocate(int32 count)
+    void Allocate(size_t count)
     {
-        memory_chunk* chunk = new memory_chunk(count);
+        MemoryChunk* chunk = new MemoryChunk(count);
         capacity += count;
         
         chunk->next = chunks;

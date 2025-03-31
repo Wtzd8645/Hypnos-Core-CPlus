@@ -15,7 +15,7 @@ class BufferPool
 public:
     static constexpr size_t MIN_CHUNK_SIZE = sizeof(char8*);
 
-    BufferPool(int32 size, int32 cap = 8)
+    BufferPool(size_t size, size_t cap = 8)
     {
         if (size < MIN_CHUNK_SIZE)
         {
@@ -33,7 +33,7 @@ public:
         }
     }
 
-    inline int32 Capacity() const noexcept { return capacity; }
+    inline size_t Capacity() const noexcept { return capacity; }
 
     inline uint8* Pop()
     {
@@ -68,15 +68,15 @@ public:
     }
 
 private:
-    int32 size = 0;
-    int32 capacity = 0;
+    size_t capacity = 0;
+    size_t size = 0;
 
     std::forward_list<uint8*> blocks;
     std::atomic<uint8*> free_buffer = nullptr;
 
-    void Allocate(uint32 count)
+    void Allocate(size_t count)
     {
-        uint8* ptr = static_cast<uint8*>(calloc(1, size * count));
+        uint8* ptr = static_cast<uint8*>(std::aligned_alloc(alignof(std::max_align_t), size * count));
         if (ptr == nullptr)
         {
             throw std::bad_alloc();
@@ -87,7 +87,7 @@ private:
 
         uint8* new_head = ptr;
         uint8* tail = new_head;
-        for (int32 i = 1; i < count; ++i)
+        for (size_t i = 1; i < count; ++i)
         {
             uint8* next = tail + size;
             *reinterpret_cast<uint8**>(tail) = next;
