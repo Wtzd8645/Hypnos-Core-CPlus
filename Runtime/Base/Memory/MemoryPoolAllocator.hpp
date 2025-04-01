@@ -3,6 +3,7 @@
 #include "MemoryUtils.hpp"
 #include <cstdlib>
 #include <new>
+#include <unistd.h>
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -12,7 +13,7 @@ typedef unsigned char* chunk_ptr;
 
 static constexpr size_t MIN_CHUNK_SIZE = sizeof(chunk_ptr);
 static constexpr size_t MAX_CHUNK_SIZE = 128;
-static constexpr size_t BLOCK_SIZE = 4096;
+static const size_t PAGE_SIZE = static_cast<size_t>(sysconf(_SC_PAGESIZE));
 
 static chunk_ptr free_chunk_buckets[MAX_CHUNK_SIZE / MIN_CHUNK_SIZE];
 
@@ -34,7 +35,7 @@ public:
         typedef MemoryPoolAllocator<U> other;
     };
 
-    static constexpr size_t ALIGNED_SIZE = AlignUp(sizeof(T), alignof(T));
+    static constexpr size_t ALIGNED_SIZE = MemoryUtils::AlignUp(sizeof(T), alignof(T));
     static constexpr size_t MAX_OBJECT_NUM = static_cast<size_t>(-1) / ALIGNED_SIZE;
     static constexpr size_t MAX_ALLOCATE_NUM = MAX_CHUNK_SIZE / ALIGNED_SIZE;
 
@@ -62,21 +63,21 @@ public:
         if (size > MAX_CHUNK_SIZE)
         {
             // printf("[MemoryPoolAllocator] allocate: %d\n", size);
-            void* const chunk = malloc(size);
+            void* const chunk = std::aligned_alloc(alignof(T), size);
             return chunk != nullptr ? static_cast<T*>(chunk) : throw std::bad_alloc();
         }
 
         size_t bucket = (size - 1) / MIN_CHUNK_SIZE;
         if (free_chunk_buckets[bucket] == nullptr)
         {
-            chunk_ptr block = static_cast<chunk_ptr>(malloc(BLOCK_SIZE));
+            chunk_ptr block = static_cast<chunk_ptr>(std::aligned_alloc(PAGE_SIZE, PAGE_SIZE));
             if (block == nullptr)
             {
                 throw std::bad_alloc();
             }
 
             size_t chunk_size = (bucket + 1) * MIN_CHUNK_SIZE;
-            size_t chunk_count = BLOCK_SIZE / chunk_size; // NOTE: It will sacrifice a little space.
+            size_t chunk_count = PAGE_SIZE / chunk_size; // NOTE: It will sacrifice a little space.
             do // Divide block into chunk and concatenate them.
             {
                 *reinterpret_cast<chunk_ptr*>(block) = free_chunk_buckets[bucket];
@@ -106,7 +107,7 @@ public:
         free_chunk_buckets[bucket] = reinterpret_cast<chunk_ptr>(chunk);
     }
 
-    void construct(pointer p, const_reference val) { new(static_cast<void*>(p)) T(val); }
+    void construct(pointer p, const_reference val) { new(p) T(val); }
 
     void destroy(pointer p) { p->~T(); }
 };

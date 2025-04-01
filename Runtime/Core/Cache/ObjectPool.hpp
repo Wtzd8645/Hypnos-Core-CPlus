@@ -35,9 +35,9 @@ public:
             Allocate(capacity);
         }
 
-        T* ptr = reinterpret_cast<T*>(free_nodes);
+        ObjectNode* node = free_nodes;
         free_nodes = free_nodes->next;
-        return ptr;
+        return reinterpret_cast<T*>(&node->storage);
     }
 
     inline void Release(T* obj)
@@ -61,7 +61,7 @@ public:
 
         ObjectNode* node = free_nodes;
         free_nodes = free_nodes->next;
-        return new (&node->object) T(std::forward<Args>(args)...);
+        return new (&node->storage) T(std::forward<Args>(args)...);
     }
 
     inline void Destroy(T* obj)
@@ -79,8 +79,8 @@ public:
 private:
     union ObjectNode
     {
-        T object;
         ObjectNode* next;
+        AlignedStorage<T> storage;
     };
 
     struct MemoryChunk
@@ -89,7 +89,7 @@ private:
         MemoryChunk* next;
 
         MemoryChunk(size_t count) :
-            nodes(static_cast<ObjectNode*>(std::aligned_alloc(alignof(ObjectNode), count * sizeof(ObjectNode)))),
+            nodes(static_cast<ObjectNode*>(std::aligned_alloc(alignof(ObjectNode), sizeof(ObjectNode) * count))),
             next(nullptr)
         {
             count--;
@@ -112,12 +112,10 @@ private:
 
     void Allocate(size_t count)
     {
-        MemoryChunk* chunk = new MemoryChunk(count);
         capacity += count;
-        
+        MemoryChunk* chunk = new MemoryChunk(count);
         chunk->next = chunks;
         chunks = chunk;
-
         free_nodes = chunk->nodes;
     }
 };

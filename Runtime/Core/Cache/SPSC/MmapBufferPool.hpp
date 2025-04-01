@@ -14,105 +14,102 @@ namespace SPSC {
 class MmapBufferPool
 {
 public:
-    static constexpr size_t MIN_BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 512;
 
-    MmapBufferPool(size_t buf_size, size_t flags, size_t cap = 8)
+    MmapBufferPool(size_t size, size_t flags, size_t cap = 8)
     {
-        if (buf_size < MIN_BUFFER_SIZE)
-        {
-            buf_size = MIN_BUFFER_SIZE;
-        }
+        this->size = MemoryUtils::AlignUp(size >= MIN_BUFFER_SIZE ? size : MIN_BUFFER_SIZE, alignof(uint8*));
+        capacity = MathUtils::RoundUpToPowerOfTwo(cap);
+        mask = capacity - 1;
 
-        this->buf_size = (buf_size + alignof(uint8*) - 1) & ~(alignof(uint8*) - 1);
+        buffers = static_cast<uint8**>(std::aligned_alloc(CACHE_LINE_SIZE, capacity * sizeof(uint8**)));
         mmap_flags |= flags;
-        Allocate(cap > 8 ? cap : 8);
-    }
-
-    ~MmapBufferPool()
-    {
-        for (auto& block : blocks)
-        {
-            munmap(block.ptr, block.size);
-        }
-    }
-
-    inline size_t Capacity() const noexcept { return capacity; }
-
-    inline uint8* Acquire()
-    {
-        uint8* head = free_buffer.load(std::memory_order_acquire);
-        if (head == nullptr)
-        {
-            Allocate(capacity);
-            head = free_buffer.load(std::memory_order_acquire);
-        }
-
-        uint8* next = *reinterpret_cast<uint8**>(head);
-        while (!free_buffer.compare_exchange_weak(head, next, std::memory_order_release, std::memory_order_relaxed))
-        {
-            next = *reinterpret_cast<uint8**>(head);
-        }
-        return head;
-    }
-
-    inline void Release(uint8* buf) noexcept
-    {
-        if (buf == nullptr)
-        {
-            return;
-        }
-
-        uint8* head = free_buffer.load(std::memory_order_relaxed);
-        do
-        {
-            *reinterpret_cast<uint8**>(buf) = head;
-        }
-        while (!free_buffer.compare_exchange_weak(head, buf, std::memory_order_release, std::memory_order_relaxed));
-    }
-
-private:
-    struct MmapBlock
-    {
-        uint8* ptr;
-        size_t size;
-    };
-
-    size_t buf_size = 0;
-    int32 mmap_prot = PROT_READ | PROT_WRITE;
-    int32 mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
-    size_t capacity = 0;
-
-    std::forward_list<MmapBlock> blocks;
-    std::atomic<uint8*> free_buffer = nullptr;
-
-    void Allocate(size_t count)
-    {
-        size_t mmap_size = buf_size * count;
-        uint8* ptr = static_cast<uint8*>(mmap(nullptr, mmap_size, mmap_prot, mmap_flags, -1, 0));
-        if (ptr == MAP_FAILED)
+        mmap_size = this->size * capacity;
+        mmap_ptr = static_cast<uint8*>(mmap(nullptr, mmap_size, mmap_prot, mmap_flags, -1, 0));
+        if (mmap_ptr == MAP_FAILED)
         {
             throw std::bad_alloc();
         }
 
-        capacity += count;
-        blocks.push_front({ ptr, mmap_size });
-
-        uint8* new_head = ptr;
-        uint8* tail = new_head;
-        for (size_t i = 1; i < count; ++i)
+        for (size_t i = 0; i < capacity; ++i)
         {
-            uint8* next = tail + buf_size;
-            *reinterpret_cast<uint8**>(tail) = next;
-            tail = next;
+            buffers[i] = mmap_ptr + (i * this->size);
         }
 
-        uint8* head = free_buffer.load(std::memory_order_relaxed);
-        do
-        {
-            *reinterpret_cast<uint8**>(tail) = head;
-        }
-        while (!free_buffer.compare_exchange_weak(head, new_head, std::memory_order_release, std::memory_order_relaxed));
+        head.store(0, std::memory_order_relaxed);
+        tail.store(capacity, std::memory_order_relaxed);
     }
+
+    ~MmapBufferPool()
+    {
+        std::free(buffers);
+        munmap(mmap_ptr, mmap_size);
+    }
+
+    inline size_t Capacity() const noexcept
+    {
+        return capacity;
+    }
+
+    inline size_t Count() const noexcept
+    {
+        return tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire);
+    }
+
+    inline bool IsEmpty() const noexcept
+    {
+        return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire);
+    }
+
+    inline bool IsFull() const noexcept
+    {
+        return (tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire)) == capacity;
+    }
+
+    inline bool Acquire(uint8*& buf) noexcept
+    {
+        size_t curr = head.load(std::memory_order_relaxed);
+        if (curr == tail.load(std::memory_order_acquire))
+        {
+            return false;
+        }
+
+        buf = buffers[curr & mask];
+        head.store(curr + 1, std::memory_order_release);
+        return true;
+    }
+
+    inline bool Release(uint8* buf) noexcept
+    {
+        if (buf == nullptr)
+        {
+            return false;
+        }
+
+        size_t curr = tail.load(std::memory_order_relaxed);
+        if ((curr - head.load(std::memory_order_acquire)) == capacity)
+        {
+            return false;
+        }
+
+        buffers[curr & mask] = buf;
+        tail.store(curr + 1, std::memory_order_release);
+        return true;
+    }
+
+private:
+    size_t size;
+    size_t capacity;
+    size_t mask;
+
+    int32 mmap_prot = PROT_READ | PROT_WRITE;
+    int32 mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
+    uint8* mmap_ptr;
+    size_t mmap_size;
+
+    uint8** buffers;
+    alignas(CACHE_LINE_SIZE) Atomic<size_t> head;
+    alignas(CACHE_LINE_SIZE) Atomic<size_t> tail;
 };
 
 } // namespace SPSC

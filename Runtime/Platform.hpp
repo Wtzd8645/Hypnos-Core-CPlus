@@ -33,14 +33,17 @@ typedef std::string               string;
 
 // region Memory
 #pragma region Memory
-template<typename T>
-using unique_ptr = std::unique_ptr<T>;
+template<typename T, size_t TSize = sizeof(T), size_t TAlign = alignof(T)>
+using AlignedStorage = std::aligned_storage_t<TSize, TAlign>;
 
 template<typename T>
-using shared_ptr = std::shared_ptr<T>;
+using Unique = std::unique_ptr<T>;
 
 template<typename T>
-using weak_ptr = std::weak_ptr<T>;
+using Shared = std::shared_ptr<T>;
+
+template<typename T>
+using Weak = std::weak_ptr<T>;
 #pragma endregion
 // endregion
 
@@ -51,6 +54,8 @@ using weak_ptr = std::weak_ptr<T>;
 #else
 #define THREAD_LOCAL __thread
 #endif
+
+constexpr size_t CACHE_LINE_SIZE = 64;
 
 using Thread = std::thread;
 

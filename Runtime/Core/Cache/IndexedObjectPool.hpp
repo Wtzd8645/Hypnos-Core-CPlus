@@ -16,8 +16,8 @@ class IndexedObjectPool
 private:
     struct Item
     {
-        T object;
         size_t index;
+        AlignedStorage<T> storage;
     };
 
 public:
@@ -30,10 +30,10 @@ public:
         using pointer = T*;
         using reference = T&;
 
-        Iterator(Item* ptr, size_t pos) : ptr(ptr), pos(pos) { }
+        Iterator(Item* ptr, size_t pos) : item(ptr), pos(pos) { }
 
-        reference operator*() const { return ptr[pos].object; }
-        pointer operator->() const { return &ptr[pos].object; }
+        reference operator*() const { return *reinterpret_cast<T*>(&item[pos].storage); }
+        pointer operator->() const { return reinterpret_cast<T*>(&item[pos].storage); }
 
         Iterator& operator++()
         {
@@ -50,7 +50,7 @@ public:
 
         friend bool operator==(const Iterator& a, const Iterator& b)
         {
-            return a.ptr == b.ptr && a.pos == b.pos;
+            return a.item == b.item && a.pos == b.pos;
         }
 
         friend bool operator!=(const Iterator& a, const Iterator& b)
@@ -59,11 +59,11 @@ public:
         }
 
     private:
-        Item* ptr;
+        Item* item;
         size_t pos;
     };
 
-    IndexedObjectPool(size_t cap = 16, float32 expand_fac = 2.0f) : items(nullptr), capacity(0), size(0), expand_factor(expand_fac)
+    IndexedObjectPool(size_t cap = 16) : capacity(cap)
     {
         Allocate(cap);
     }
@@ -77,25 +77,25 @@ public:
     }
 
     Iterator begin() { return Iterator(items, 0); }
-    Iterator end() { return Iterator(items, size); }
+    Iterator end() { return Iterator(items, count); }
 
     size_t Capacity() const noexcept { return capacity; }
-    size_t Size() const noexcept { return size; }
+    size_t Count() const noexcept { return count; }
 
     void Clear()
     {
-        size = 0;
+        count = 0;
     }
 
     inline T* Acquire()
     {
-        if (size >= capacity)
+        if (count >= capacity)
         {
             Expand();
         }
 
-        size_t freeIndex = items[size++].index;
-        return &items[freeIndex].object;
+        size_t index = items[count++].index;
+        return reinterpret_cast<T*>(&items[index].storage);
     }
 
     inline void Release(T* obj)
@@ -106,24 +106,21 @@ public:
             return;
         }
 
-        --size;
         size_t index = item->index;
-        item->index = items[size].index;
-        items[size].index = index;
-        item->object.~T();
+        item->index = items[--count].index;
+        items[count].index = index;
     }
 
     template<typename... Args>
     inline T* Emplace(Args&&... args)
     {
-        if (size >= capacity)
+        if (count >= capacity)
         {
             Expand();
         }
 
-        size_t freeIndex = items[size++].index;
-        new (&items[freeIndex].object) T(std::forward<Args>(args)...);
-        return &items[freeIndex].object;
+        size_t index = items[count++].index;
+        return new (&items[index].storage) T(std::forward<Args>(args)...);
     }
 
     inline void Destroy(T* obj)
@@ -134,21 +131,20 @@ public:
             return;
         }
 
-        --size;
+        obj->~T();
         size_t index = item->index;
-        item->index = items[size].index;
-        items[size].index = index;
+        item->index = items[--count].index;
+        items[count].index = index;
     }
 
 private:
-    float32 expand_factor;
     size_t capacity;
-    size_t size;
-    Item* items;
+    size_t count = 0;
+    Item* items = nullptr;
 
     void Allocate(size_t cap)
     {
-        if (cap <= capacity)
+        if (capacity > 0 && cap <= capacity)
         {
             return;
         }
@@ -156,11 +152,11 @@ private:
         Item* new_items = static_cast<Item*>(std::aligned_alloc(alignof(Item), cap * sizeof(Item)));
         if (items != nullptr)
         {
-            std::uninitialized_move(items, items + size, new_items);
+            std::uninitialized_move(items, items + count, new_items);
             std::free(items);
         }
 
-        for (size_t i = capacity; i < cap; ++i)
+        for (size_t i = capacity; i < cap; i++)
         {
             new_items[i].index = i;
         }
@@ -168,10 +164,9 @@ private:
         items = new_items;
     }
 
-    void Expand()
+    inline void Expand()
     {
-        size_t new_cap = std::max(size_t(1), static_cast<size_t>(capacity * expand_factor));
-        Allocate(new_cap);
+        Allocate(std::max(size_t(1), capacity * 2));
     }
 };
 

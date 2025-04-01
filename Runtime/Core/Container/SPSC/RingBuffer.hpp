@@ -1,7 +1,8 @@
 #pragma once
 
+#include <Hypnos-Kernel/Base/Math.hpp>
+#include <Hypnos-Kernel/Base/Memory.hpp>
 #include <atomic>
-#include <vector>
 
 namespace Blanketmen {
 namespace Hypnos {
@@ -12,15 +13,31 @@ template <typename T>
 class RingBuffer
 {
 public:
-    static constexpr size_t MIN_CAPACITY = 2;
-
-    RingBuffer(size_t cap) : buffer(cap), capacity(cap), head(0), tail(0) { } // TODO: Limit capacity.
-
-    inline size_t Size() const
+    RingBuffer(size_t cap)
     {
-        size_t curr_head = head.load(std::memory_order_acquire);
-        size_t curr_tail = tail.load(std::memory_order_acquire);
-        return (curr_head + capacity - curr_tail) % capacity;
+        capacity = MathUtils::RoundUpToPowerOfTwo(cap);
+        mask = capacity - 1;
+
+        size_t size = MemoryUtils::AlignUp(capacity * sizeof(T), CACHE_LINE_SIZE);
+        buffer = static_cast<T*>(std::aligned_alloc(CACHE_LINE_SIZE, size));
+
+        head.store(0, std::memory_order_relaxed);
+        tail.store(capacity, std::memory_order_relaxed);
+    }
+
+    ~RingBuffer()
+    {
+        std::free(buffer);
+    }
+
+    inline size_t Capacity() const noexcept
+    {
+        return capacity;
+    }
+
+    inline size_t Count() const noexcept
+    {
+        return tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire);
     }
 
     inline bool IsEmpty() const noexcept
@@ -30,45 +47,45 @@ public:
 
     inline bool IsFull() const noexcept
     {
-        return (head.load(std::memory_order_acquire) + 1) % capacity == tail.load(std::memory_order_acquire);
+        return (tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire)) == capacity;
     }
 
     bool Enqueue(const T& item)
     {
-        size_t curr_head = head.load(std::memory_order_relaxed);
-        size_t next_head = (curr_head + 1) % capacity;
-        if (next_head == tail.load(std::memory_order_acquire))
+        size_t curr = tail.load(std::memory_order_relaxed);
+        if ((curr - head.load(std::memory_order_acquire)) == capacity)
         {
             return false;
         }
 
-        buffer[curr_head] = item;
-        head.store(next_head, std::memory_order_release);
+        buffer[curr & mask] = item;
+        tail.store(curr + 1, std::memory_order_release);
         return true;
     }
 
     bool Dequeue(T& item)
     {
-        size_t curr_tail = tail.load(std::memory_order_relaxed);
-        if (curr_tail == head.load(std::memory_order_acquire))
+        size_t curr = head.load(std::memory_order_relaxed);
+        if (curr == tail.load(std::memory_order_acquire))
         {
             return false;
         }
 
-        item = buffer[curr_tail];
-        tail.store((curr_tail + 1) % capacity, std::memory_order_release);
+        item = buffer[curr & mask];
+        head.store(curr + 1, std::memory_order_release);
         return true;
     }
 
 private:
-    const size_t capacity;
+    size_t capacity;
+    size_t mask;
 
-    std::vector<T> buffer;
-    alignas(64) std::atomic<size_t> head;
-    alignas(64) std::atomic<size_t> tail;
+    T* buffer;
+    alignas(CACHE_LINE_SIZE) Atomic<size_t> head;
+    alignas(CACHE_LINE_SIZE) Atomic<size_t> tail;
 };
 
 } // namespace SPSC
-} // namespace Threads
+} // namespace Container
 } // namespace Hypnos
 } // namespace Blanketmen
