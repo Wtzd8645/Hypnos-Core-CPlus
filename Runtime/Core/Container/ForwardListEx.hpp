@@ -34,7 +34,7 @@ template<typename T, typename Allocator = MemoryPoolAllocator<SinglyNode<T>>>
          pointer operator->() const { return &node->object; }
 
          Iterator& operator++() { node = node->next; return *this; }
-         Iterator operator++(int) { Iterator it(*this); node = node->next; return it; }
+         Iterator operator++(int) { Iterator it = *this; ++(*this); return it; }
 
          friend bool operator==(const Iterator& lhs, const Iterator& rhs) { return lhs.node == rhs.node; }
          friend bool operator!=(const Iterator& lhs, const Iterator& rhs) { return lhs.node != rhs.node; }
@@ -86,9 +86,10 @@ template<typename T, typename Allocator = MemoryPoolAllocator<SinglyNode<T>>>
          return *this;
      }
 
-     inline int32 Size() const noexcept { return size; }
      inline Iterator begin() const noexcept { return Iterator(head); }
      inline Iterator end() const noexcept { return Iterator(nullptr); }
+
+     inline int32 Size() const noexcept { return size; }
  
      void Clear() noexcept
      {

@@ -2,6 +2,7 @@
 
 #include "Base/Math/MathUtils.hpp"
 #include "Base/Memory/MemoryUtils.hpp"
+#include "Platform.hpp"
 
 namespace Blanketmen {
 
@@ -26,25 +27,13 @@ public:
         std::free(buffer);
     }
 
-    inline size_t Capacity() const noexcept
-    {
-        return capacity;
-    }
+    size_t Capacity() const noexcept { return capacity; }
 
-    inline size_t Count() const noexcept
-    {
-        return tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire);
-    }
+    size_t Count() const noexcept { return tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire); }
 
-    inline bool IsEmpty() const noexcept
-    {
-        return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire);
-    }
+    bool IsEmpty() const noexcept { return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire); }
 
-    inline bool IsFull() const noexcept
-    {
-        return (tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire)) == capacity;
-    }
+    bool IsFull() const noexcept { return (tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire)) == capacity; }
 
     bool Enqueue(const T& item)
     {

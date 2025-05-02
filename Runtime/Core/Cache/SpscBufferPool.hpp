@@ -42,10 +42,7 @@ public:
         munmap(mmap_ptr, mmap_size);
     }
 
-    inline size_t Capacity() const noexcept
-    {
-        return capacity;
-    }
+    inline size_t Capacity() const noexcept { return capacity; }
 
     inline size_t Count() const noexcept
     {

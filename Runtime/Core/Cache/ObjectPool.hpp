@@ -24,9 +24,9 @@ public:
         }
     }
 
-    inline size_t Capacity() const noexcept { return capacity; }
+    size_t Capacity() const noexcept { return capacity; }
 
-    inline T* Acquire()
+    T* Acquire()
     {
         if (free_nodes == nullptr)
         {
@@ -38,7 +38,7 @@ public:
         return reinterpret_cast<T*>(&node->storage);
     }
 
-    inline void Release(T* obj)
+    void Release(T* obj)
     {
         if (obj == nullptr)
         {
@@ -50,7 +50,7 @@ public:
     }
 
     template<typename... Args>
-    inline T* Emplace(Args&&... args)
+    T* Emplace(Args&&... args)
     {
         if (free_nodes == nullptr)
         {
@@ -62,7 +62,7 @@ public:
         return new (&node->storage) T(std::forward<Args>(args)...);
     }
 
-    inline void Destroy(T* obj)
+    void Destroy(T* obj)
     {
         if (obj == nullptr)
         {
@@ -77,8 +77,8 @@ public:
 private:
     union ObjectNode
     {
-        ObjectNode* next;
         AlignedStorage<T> storage;
+        ObjectNode* next;
     };
 
     struct MemoryChunk
@@ -91,7 +91,7 @@ private:
             next(nullptr)
         {
             count--;
-            for (size_t i = 0; i < count; i++)
+            for (size_t i = 0; i < count; ++i)
             {
                 nodes[i].next = &nodes[i + 1];
             }
