@@ -3,7 +3,6 @@
 #include <utility>
 
 namespace Blanketmen {
-namespace Hypnos {
 
 template<typename... TArgs>
 class MulticastDelegate
@@ -169,5 +168,4 @@ private:
     FunctionBase* functions = nullptr;
 };
 
-} // namespace Hypnos
 } // namespace Blanketmen

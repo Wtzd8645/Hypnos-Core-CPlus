@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Hypnos-Kernel/Base/Math.hpp>
-#include <Hypnos-Kernel/Base/Memory.hpp>
+#include "Base/Math/MathUtils.hpp"
+#include "Base/Memory/MemoryUtils.hpp"
 #include <atomic>
 
 namespace Blanketmen {
@@ -22,7 +22,7 @@ public:
         buffer = static_cast<T*>(std::aligned_alloc(CACHE_LINE_SIZE, size));
 
         head.store(0, std::memory_order_relaxed);
-        tail.store(capacity, std::memory_order_relaxed);
+        tail.store(0, std::memory_order_relaxed);
     }
 
     ~RingBuffer()

@@ -1,7 +1,6 @@
 #pragma once
 
 namespace Blanketmen {
-namespace Hypnos {
 
 template<typename... T>
 class EventHandlerBase
@@ -12,5 +11,4 @@ public:
     virtual void Handle(T... args) = 0;
 };
 
-} // namespace Hypnos
 } // namespace Blanketmen

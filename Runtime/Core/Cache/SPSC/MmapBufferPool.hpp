@@ -16,7 +16,7 @@ class MmapBufferPool
 public:
     static constexpr size_t MIN_BUFFER_SIZE = 512;
 
-    MmapBufferPool(size_t size, size_t flags, size_t cap = 8)
+    MmapBufferPool(size_t size, size_t cap = 8, size_t flags = 0)
     {
         this->size = MemoryUtils::AlignUp(size >= MIN_BUFFER_SIZE ? size : MIN_BUFFER_SIZE, alignof(uint8*));
         capacity = MathUtils::RoundUpToPowerOfTwo(cap);
