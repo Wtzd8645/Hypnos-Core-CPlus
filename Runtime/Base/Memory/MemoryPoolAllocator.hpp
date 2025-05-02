@@ -6,8 +6,6 @@
 #include <unistd.h>
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Memory {
 
 typedef unsigned char* chunk_ptr;
 
@@ -112,8 +110,6 @@ public:
     void destroy(pointer p) { p->~T(); }
 };
 
-} // namespace Memory
-} // namespace Hypnos
 } // namespace Blanketmen
 
 // void* operator new(std::size_t size)

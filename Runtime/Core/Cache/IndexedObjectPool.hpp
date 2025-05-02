@@ -7,8 +7,6 @@
 #include <type_traits>
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Cache {
 
 template <typename T>
 class IndexedObjectPool
@@ -170,6 +168,4 @@ private:
     }
 };
 
-} // namespace Cache
-} // namespace Hypnos
 } // namespace Blanketmen

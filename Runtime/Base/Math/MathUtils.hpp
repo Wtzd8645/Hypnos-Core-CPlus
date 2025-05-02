@@ -1,5 +1,7 @@
 #pragma once
 
+namespace Blanketmen {
+
 struct MathUtils
 {
     inline static constexpr size_t RoundUpToPowerOfTwo(size_t val) noexcept
@@ -22,3 +24,5 @@ struct MathUtils
         return ++val;
     }
 };
+
+} // namespace Blanketmen

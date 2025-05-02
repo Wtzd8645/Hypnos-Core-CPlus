@@ -3,8 +3,6 @@
 #include "Platform.hpp"
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Encoding {
 
 struct Base128Varints
 {
@@ -103,6 +101,4 @@ struct Base128Varints
     }
 };
 
-} // namespace Encoding
-} // namespace Hypnos
 } // namespace Blanketmen

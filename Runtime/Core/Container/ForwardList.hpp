@@ -4,12 +4,8 @@
 #include <forward_list>
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Container {
 
-template<typename T, typename TAllocator = Memory::MemoryPoolAllocator<T>>
+template<typename T, typename TAllocator = MemoryPoolAllocator<T>>
 using ForwardList = std::forward_list<T, TAllocator>;
 
-} // namespace Container
-} // namespace Hypnos
 } // namespace Blanketmen

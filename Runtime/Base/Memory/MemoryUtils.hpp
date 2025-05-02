@@ -3,7 +3,6 @@
 #include <cstddef>
 
 namespace Blanketmen {
-namespace Hypnos {
 
 struct MemoryUtils
 {
@@ -18,5 +17,4 @@ struct MemoryUtils
     }
 };
 
-} // namespace Hypnos
 } // namespace Blanketmen

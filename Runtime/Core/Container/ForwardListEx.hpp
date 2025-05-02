@@ -4,8 +4,6 @@
 #include "Platform.hpp"
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Container {
 
 template<typename T>
 struct SinglyNode
@@ -14,7 +12,7 @@ struct SinglyNode
     T object;
 };
 
-template<typename T, typename Allocator = Memory::MemoryPoolAllocator<SinglyNode<T>>>
+template<typename T, typename Allocator = MemoryPoolAllocator<SinglyNode<T>>>
  class ForwardListEx
  { 
  public:
@@ -256,6 +254,4 @@ private:
      }
  };
 
-} // namespace Container
-} // namespace Hypnos
 } // namespace Blanketmen

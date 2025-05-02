@@ -3,8 +3,6 @@
 #include "Platform.hpp"
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Cache {
 
 template<typename T>
 class ObjectPool
@@ -120,6 +118,4 @@ private:
     }
 };
 
-} // namespace Cache
-} // namespace Hypnos
 } // namespace Blanketmen

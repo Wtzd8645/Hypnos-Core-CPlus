@@ -2,18 +2,14 @@
 
 #include "Base/Math/MathUtils.hpp"
 #include "Base/Memory/MemoryUtils.hpp"
-#include <atomic>
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Container {
-namespace SPSC {
 
 template <typename T>
-class RingBuffer
+class SpscRingBuffer
 {
 public:
-    RingBuffer(size_t cap)
+    SpscRingBuffer(size_t cap)
     {
         capacity = MathUtils::RoundUpToPowerOfTwo(cap);
         mask = capacity - 1;
@@ -25,7 +21,7 @@ public:
         tail.store(0, std::memory_order_relaxed);
     }
 
-    ~RingBuffer()
+    ~SpscRingBuffer()
     {
         std::free(buffer);
     }
@@ -85,7 +81,4 @@ private:
     alignas(CACHE_LINE_SIZE) Atomic<size_t> tail;
 };
 
-} // namespace SPSC
-} // namespace Container
-} // namespace Hypnos
 } // namespace Blanketmen

@@ -3,8 +3,6 @@
 #include "Platform.hpp"
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Encoding {
 
 struct ZigZag
 {
@@ -29,6 +27,4 @@ struct ZigZag
     }
 };
 
-} // namespace Encoding
-} // namespace Hypnos
 } // namespace Blanketmen

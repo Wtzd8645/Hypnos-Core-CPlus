@@ -4,8 +4,6 @@
 #include <cstring>
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace IO {
 
 struct BinaryWriter
 {
@@ -67,6 +65,4 @@ struct BinaryWriter
     }
 };
 
-} // namespace IO
-} // namespace Hypnos
 } // namespace Blanketmen

@@ -2,21 +2,17 @@
 
 #include "Platform.hpp"
 #include <atomic>
-#include <forward_list>
 #include <stdexcept>
 #include <sys/mman.h>
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Cache {
-namespace SPSC {
 
-class MmapBufferPool
+class SpscBufferPool
 {
 public:
     static constexpr size_t MIN_BUFFER_SIZE = 512;
 
-    MmapBufferPool(size_t size, size_t cap = 8, size_t flags = 0)
+    SpscBufferPool(size_t size, size_t cap = 8, size_t flags = 0)
     {
         this->size = MemoryUtils::AlignUp(size >= MIN_BUFFER_SIZE ? size : MIN_BUFFER_SIZE, alignof(uint8*));
         capacity = MathUtils::RoundUpToPowerOfTwo(cap);
@@ -40,7 +36,7 @@ public:
         tail.store(capacity, std::memory_order_relaxed);
     }
 
-    ~MmapBufferPool()
+    ~SpscBufferPool()
     {
         std::free(buffers);
         munmap(mmap_ptr, mmap_size);
@@ -112,7 +108,4 @@ private:
     alignas(CACHE_LINE_SIZE) Atomic<size_t> tail;
 };
 
-} // namespace SPSC
-} // namespace Cache
-} // namespace Hypnos
 } // namespace Blanketmen

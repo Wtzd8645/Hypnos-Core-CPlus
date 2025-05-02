@@ -4,12 +4,8 @@
 #include <vector>
 
 namespace Blanketmen {
-namespace Hypnos {
-namespace Container {
 
-template<typename T, typename TAllocator = Memory::MemoryPoolAllocator<T>>
+template<typename T, typename TAllocator = MemoryPoolAllocator<T>>
 using List = std::vector<T, TAllocator>;
 
-} // namespace Container
-} // namespace Hypnos
 } // namespace Blanketmen
