@@ -25,6 +25,10 @@ add_library(Hypnos-Kernel STATIC "Include/Hypnos-Kernel/Base/Logging_Unix.cpp")
 
 set_target_properties(Hypnos-Kernel PROPERTIES LINKER_LANGUAGE CXX)
 
+target_compile_options(Hypnos-Kernel PRIVATE -stdlib=libc++)
+
+target_link_options(Hypnos-Kernel PRIVATE -stdlib=libc++)
+
 target_include_directories(Hypnos-Kernel INTERFACE "Include" "Runtime")
 
 target_precompile_headers(Hypnos-Kernel INTERFACE "Runtime/Platform.hpp")
