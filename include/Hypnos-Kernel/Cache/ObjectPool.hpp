@@ -85,7 +85,7 @@ private:
         MemoryChunk* next;
 
         MemoryChunk(size_t count) :
-            nodes(static_cast<ObjectNode*>(std::aligned_alloc(alignof(ObjectNode), sizeof(ObjectNode) * count))),
+            nodes(static_cast<ObjectNode*>(aligned_alloc(alignof(ObjectNode), sizeof(ObjectNode) * count))),
             next(nullptr)
         {
             count--;
@@ -98,7 +98,7 @@ private:
 
         ~MemoryChunk()
         {
-            std::free(nodes);
+            free(nodes);
         }
     };
 

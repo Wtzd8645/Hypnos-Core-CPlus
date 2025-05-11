@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Hypnos-Kernel/Base/Memory/MemoryPoolAllocator.hpp"
+#include <memory>
 #include <stack>
 
 namespace Blanketmen {
 
-template <typename T, typename TSequence = std::deque<T, MemoryPoolAllocator<T>>>
+template <typename T, typename TSequence = std::deque<T, std::allocator<T>>>
 using Stack = std::stack<T, TSequence>;
 
 } // namespace Blanketmen

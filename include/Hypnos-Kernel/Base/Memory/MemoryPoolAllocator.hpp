@@ -60,14 +60,14 @@ public:
         if (size > MAX_CHUNK_SIZE)
         {
             // printf("[MemoryPoolAllocator] allocate: %d\n", size);
-            void* const chunk = std::aligned_alloc(alignof(T), size);
+            void* const chunk = aligned_alloc(alignof(T), size);
             return chunk != nullptr ? static_cast<T*>(chunk) : throw std::bad_alloc();
         }
 
         size_t bucket = (size - 1) / MIN_CHUNK_SIZE;
         if (free_chunk_buckets[bucket] == nullptr)
         {
-            chunk_ptr block = static_cast<chunk_ptr>(std::aligned_alloc(PAGE_SIZE, PAGE_SIZE));
+            chunk_ptr block = static_cast<chunk_ptr>(aligned_alloc(PAGE_SIZE, PAGE_SIZE));
             if (block == nullptr)
             {
                 throw std::bad_alloc();

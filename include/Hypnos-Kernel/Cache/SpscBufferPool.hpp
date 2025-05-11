@@ -18,7 +18,7 @@ public:
         capacity = MathUtils::RoundUpToPowerOfTwo(cap);
         mask = capacity - 1;
 
-        buffers = static_cast<uint8**>(std::aligned_alloc(CACHE_LINE_SIZE, capacity * sizeof(uint8**)));
+        buffers = static_cast<uint8**>(aligned_alloc(CACHE_LINE_SIZE, capacity * sizeof(uint8**)));
         mmap_flags |= flags;
         mmap_size = this->size * capacity;
         mmap_ptr = static_cast<uint8*>(mmap(nullptr, mmap_size, mmap_prot, mmap_flags, -1, 0));
@@ -38,7 +38,7 @@ public:
 
     ~SpscBufferPool()
     {
-        std::free(buffers);
+        free(buffers);
         munmap(mmap_ptr, mmap_size);
     }
 

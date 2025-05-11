@@ -40,7 +40,7 @@ public:
         size_t pos;
     };
 
-    TrackedObjectPool(size_t cap = 16) : capacity(cap)
+    TrackedObjectPool(size_t cap = 16)
     {
         Allocate(cap);
     }
@@ -49,7 +49,7 @@ public:
     {
         if (elems != nullptr)
         {
-            std::free(elems);
+            free(elems);
         }
     }
 
@@ -119,7 +119,7 @@ public:
     }
 
 private:
-    size_t capacity;
+    size_t capacity = 0;
     size_t count = 0;
     Element* elems = nullptr;
 
@@ -131,11 +131,11 @@ private:
             return;
         }
 
-        Element* new_elems = static_cast<Element*>(std::aligned_alloc(alignof(Element), cap * sizeof(Element)));
+        Element* new_elems = static_cast<Element*>(aligned_alloc(alignof(Element), cap * sizeof(Element)));
         if (elems != nullptr)
         {
             std::uninitialized_move(elems, elems + count, new_elems);
-            std::free(elems);
+            free(elems);
         }
 
         for (size_t i = capacity; i < cap; ++i)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Hypnos-Kernel/Base/Memory/MemoryPoolAllocator.hpp"
+#include <memory>
 
 namespace Blanketmen {
 
@@ -11,7 +11,7 @@ struct SinglyNode
     T object;
 };
 
-template<typename T, typename Allocator = MemoryPoolAllocator<SinglyNode<T>>>
+template<typename T, typename Allocator = std::allocator<SinglyNode<T>>>
  class ForwardListEx
  { 
  public:
