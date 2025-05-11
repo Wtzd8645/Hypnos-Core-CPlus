@@ -216,7 +216,7 @@ private:
      template<typename U>
      void AddLastInternal(U&& obj)
      {
-         singly_node node = alloc_traits::allocate(allocator, 1);
+         singly_node* node = alloc_traits::allocate(allocator, 1);
          new (&node->object) T(std::forward<U>(obj));
          node->next = nullptr;
 

@@ -71,6 +71,27 @@ using LockGuard = std::lock_guard<T>;
 template<typename T>
 using UniqueLock = std::unique_lock<T>;
 #pragma endregion
+
+
+class Spinlock
+{
+public:
+    void lock()
+    {
+        while (flag.test_and_set(std::memory_order_acquire))
+        {
+            std::this_thread::yield();
+        }
+    }
+
+    void unlock()
+    {
+        flag.clear(std::memory_order_release);
+    }
+
+private:
+    std::atomic_flag flag = ATOMIC_FLAG_INIT;
+};
 // endregion
 
 } // namespace Blanketmen
