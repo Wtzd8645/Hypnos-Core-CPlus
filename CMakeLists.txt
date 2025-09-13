@@ -1,65 +1,65 @@
-﻿cmake_minimum_required (VERSION 3.12)
-project(Hypnos-Kernel VERSION 0.0.1 LANGUAGES CXX)
+cmake_minimum_required (VERSION 3.12)
+project(Hypnos-Core VERSION 0.0.1 LANGUAGES CXX)
 
 if(NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD LESS 20)
-    message(FATAL_ERROR "Hypnos-Kernel requires C++20. Please set CMAKE_CXX_STANDARD to 20 or higher.")
+    message(FATAL_ERROR "Hypnos-Core requires C++20. Please set CMAKE_CXX_STANDARD to 20 or higher.")
 endif()
 
-add_library(Hypnos-Kernel INTERFACE)
+add_library(Hypnos-Core INTERFACE)
 
-set_target_properties(Hypnos-Kernel PROPERTIES
+set_target_properties(Hypnos-Core PROPERTIES
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS OFF
     LINKER_LANGUAGE CXX
 )
 
-target_include_directories(Hypnos-Kernel INTERFACE
+target_include_directories(Hypnos-Core INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-target_precompile_headers(Hypnos-Kernel INTERFACE
-    "include/Hypnos-Kernel/Logging.hpp"
-    "include/Hypnos-Kernel/Platform.hpp"
+target_precompile_headers(Hypnos-Core INTERFACE
+    "include/Hypnos-Core/Logging.hpp"
+    "include/Hypnos-Core/Platform.hpp"
 )
 
-target_compile_options(Hypnos-Kernel INTERFACE
-    -includeHypnos-Kernel/Logging.hpp
-    -includeHypnos-Kernel/Platform.hpp)
+target_compile_options(Hypnos-Core INTERFACE
+    -includeHypnos-Core/Logging.hpp
+    -includeHypnos-Core/Platform.hpp)
 
 # Set the target properties
-install(TARGETS Hypnos-Kernel
-    EXPORT HypnosKernelTargets
+install(TARGETS Hypnos-Core
+    EXPORT HypnosCoreTargets
 )
 
 # Install the headers
 install(DIRECTORY include/ DESTINATION include)
 
 # Install the export set for the target
-install(EXPORT HypnosKernelTargets
-    FILE HypnosKernelTargets.cmake
+install(EXPORT HypnosCoreTargets
+    FILE HypnosCoreTargets.cmake
     NAMESPACE Blanketmen::
-    DESTINATION lib/cmake/Hypnos-Kernel
+    DESTINATION lib/cmake/Hypnos-Core
 )
 
 # Generate the config file
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/HypnosKernelConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/HypnosKernelConfig.cmake"
-    INSTALL_DESTINATION lib/cmake/Hypnos-Kernel
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/HypnosCoreConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/HypnosCoreConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/Hypnos-Core
 )
 
 # Generate the version file
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/HypnosKernelConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/HypnosCoreConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMinorVersion
 )
 
 # Install the config and version files
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/HypnosKernelConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/HypnosKernelConfigVersion.cmake"
-    DESTINATION lib/cmake/Hypnos-Kernel
+    "${CMAKE_CURRENT_BINARY_DIR}/HypnosCoreConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/HypnosCoreConfigVersion.cmake"
+    DESTINATION lib/cmake/Hypnos-Core
 )

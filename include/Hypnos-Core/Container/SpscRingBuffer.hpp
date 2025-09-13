@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Hypnos-Kernel/Base/Math/MathUtils.hpp"
-#include "Hypnos-Kernel/Base/Memory/MemoryUtils.hpp"
+#include "Hypnos-Core/Base/Math/MathUtils.hpp"
+#include "Hypnos-Core/Base/Memory/MemoryUtils.hpp"
 
 namespace Blanketmen {
 

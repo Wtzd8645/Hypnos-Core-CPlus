@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Hypnos-Kernel/Base/Math/MathUtils.hpp>
+#include <Hypnos-Core/Base/Math/MathUtils.hpp>
 #include <atomic>
 #include <stdexcept>
 #include <sys/mman.h>
