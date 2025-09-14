@@ -8,12 +8,6 @@ add_library(Hypnos-Core INTERFACE)
 
 target_compile_features(Hypnos-Core INTERFACE cxx_std_20)
 
-set_target_properties(Hypnos-Core PROPERTIES
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS OFF
-    LINKER_LANGUAGE CXX
-)
-
 # Configure include directories for both build and install scenarios
 # BUILD_INTERFACE: Points to the source tree location during build time
 # INSTALL_INTERFACE: Points to the installed location after package installation
