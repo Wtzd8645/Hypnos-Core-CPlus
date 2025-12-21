@@ -28,11 +28,9 @@ public:
 
     size_t Capacity() const noexcept { return capacity; }
 
-    size_t Count() const noexcept { return tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire); }
+    bool IsEmpty() const noexcept { return head.load(std::memory_order_relaxed) == tail.load(std::memory_order_acquire); }
 
-    bool IsEmpty() const noexcept { return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire); }
-
-    bool IsFull() const noexcept { return (tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire)) == capacity; }
+    bool IsFull() const noexcept { return (tail.load(std::memory_order_relaxed) - head.load(std::memory_order_acquire)) == capacity; }
 
     bool Enqueue(const T& item)
     {

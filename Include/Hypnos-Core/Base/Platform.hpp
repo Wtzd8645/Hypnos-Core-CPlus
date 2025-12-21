@@ -1,9 +1,10 @@
 #pragma once
 
-#include <cassert>
 #include <atomic>
+#include <cassert>
 #include <condition_variable>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -186,14 +187,17 @@ private:
 template<typename T, size_t TSize = sizeof(T), size_t TAlign = alignof(T)>
 using AlignedStorage = std::aligned_storage_t<TSize, TAlign>;
 
-template<typename T>
-using Unique = std::unique_ptr<T>;
+template<typename T, typename... TArgs>
+using Function = std::function<T(TArgs...)>;
 
 template<typename T>
-using Shared = std::shared_ptr<T>;
+using UniquePtr = std::unique_ptr<T>;
 
 template<typename T>
-using Weak = std::weak_ptr<T>;
+using SharedPtr = std::shared_ptr<T>;
+
+template<typename T>
+using WeakPtr = std::weak_ptr<T>;
 #pragma endregion
 
 #pragma region Thread

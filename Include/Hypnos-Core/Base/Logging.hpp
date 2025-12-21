@@ -50,7 +50,7 @@ struct StdoutLogger : public ILogger
 class Logging
 {
 public:
-    inline static void SetLogger(ILogger* logger)
+    inline static void Configure(ILogger* logger)
     {
         Logging::logger = logger != nullptr ? logger : &stdoutLogger;
     }
