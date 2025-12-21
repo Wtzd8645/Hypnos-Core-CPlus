@@ -50,12 +50,12 @@ struct StdoutLogger : public ILogger
 class Logging
 {
 public:
-    static inline void SetLogger(ILogger* logger)
+    inline static void SetLogger(ILogger* logger)
     {
         Logging::logger = logger != nullptr ? logger : &stdoutLogger;
     }
 
-    static inline void Info(const char* const format, ...) noexcept
+    inline static void Info(const char* const format, ...) noexcept
     {
         va_list args { };
         va_start(args, format);
@@ -63,7 +63,7 @@ public:
         va_end(args);
     }
 
-    static inline void Warning(const char* const format, ...) noexcept
+    inline static void Warning(const char* const format, ...) noexcept
     {
         va_list args { };
         va_start(args, format);
@@ -71,7 +71,7 @@ public:
         va_end(args);
     }
 
-    static inline void Error(const char* const format, ...) noexcept
+    inline static void Error(const char* const format, ...) noexcept
     {
         va_list args { };
         va_start(args, format);
@@ -80,8 +80,8 @@ public:
     }
 
 private:
-    static inline StdoutLogger stdoutLogger;
-    static inline ILogger* logger = &stdoutLogger;
+    inline static StdoutLogger stdoutLogger;
+    inline static ILogger* logger = &stdoutLogger;
 };
 
 } // namespace Blanketmen
