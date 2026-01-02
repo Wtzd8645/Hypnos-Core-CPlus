@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Hypnos-Core/Base/Memory/MemoryUtils.hpp>
+
 namespace Blanketmen {
 
 template<typename T>
@@ -8,32 +10,40 @@ class ObjectPool
 public:
     ObjectPool(size_t cap = 8)
     {
-        Allocate(cap > 8 ? cap : 8);
+        Allocate(cap);
     }
 
     ~ObjectPool()
     {
-        MemoryChunk* chunk = chunks;
+        Chunk* chunk = chunks;
         while (chunk != nullptr)
         {
-            MemoryChunk* next = chunk->next;
-            delete chunk;
+            Chunk* next = chunk->next;
+            MemoryUtils::Deallocate<Chunk>(chunk);
             chunk = next;
         }
     }
+
+    ObjectPool(const ObjectPool&) = delete;
+
+    ObjectPool& operator=(const ObjectPool&) = delete;
+
+    ObjectPool(ObjectPool&&) = delete;
+
+    ObjectPool& operator=(ObjectPool&&) = delete;
 
     size_t Capacity() const noexcept { return capacity; }
 
     T* Acquire()
     {
-        if (free_nodes == nullptr)
+        if (free_storages == nullptr && Allocate(capacity).IsFailed())
         {
-            Allocate(capacity);
+            return nullptr;
         }
 
-        ObjectNode* node = free_nodes;
-        free_nodes = free_nodes->next;
-        return reinterpret_cast<T*>(&node->storage);
+        Storage* storage = free_storages;
+        free_storages = free_storages->next;
+        return new (storage) T();
     }
 
     void Release(T* obj)
@@ -43,76 +53,51 @@ public:
             return;
         }
 
-        reinterpret_cast<ObjectNode*>(obj)->next = free_nodes;
-        free_nodes = reinterpret_cast<ObjectNode*>(obj);
-    }
-
-    template<typename... Args>
-    T* Emplace(Args&&... args)
-    {
-        if (free_nodes == nullptr)
-        {
-            Allocate(capacity);
-        }
-
-        ObjectNode* node = free_nodes;
-        free_nodes = free_nodes->next;
-        return new (&node->storage) T(std::forward<Args>(args)...);
-    }
-
-    void Destroy(T* obj)
-    {
-        if (obj == nullptr)
-        {
-            return;
-        }
-
         obj->~T();
-        reinterpret_cast<ObjectNode*>(obj)->next = free_nodes;
-        free_nodes = reinterpret_cast<ObjectNode*>(obj);
+        Storage* storage = reinterpret_cast<Storage*>(obj);
+        storage->next = free_storages;
+        free_storages = storage;
     }
 
 private:
-    union ObjectNode
+    union Storage
     {
-        AlignedStorage<T> storage;
-        ObjectNode* next;
+        Storage* next;
+        T value;
     };
 
-    struct MemoryChunk
+    struct Chunk
     {
-        ObjectNode* nodes;
-        MemoryChunk* next;
-
-        MemoryChunk(size_t count) :
-            nodes(static_cast<ObjectNode*>(aligned_alloc(alignof(ObjectNode), sizeof(ObjectNode) * count))),
-            next(nullptr)
-        {
-            count--;
-            for (size_t i = 0; i < count; ++i)
-            {
-                nodes[i].next = &nodes[i + 1];
-            }
-            (nodes + count)->next = nullptr;
-        }
-
-        ~MemoryChunk()
-        {
-            free(nodes);
-        }
+        Chunk* next;
+        alignas(Storage) byte storage[];
     };
 
     size_t capacity = 0;
-    MemoryChunk* chunks = nullptr;
-    ObjectNode* free_nodes = nullptr;
+    Chunk* chunks = nullptr;
+    Storage* free_storages = nullptr;
 
-    void Allocate(size_t count)
+    Status<void> Allocate(size_t count)
     {
+        void* bytes = MemoryUtils::Allocate<Chunk>(offsetof(Chunk, storage) + sizeof(Storage) * count);
+        if (bytes == nullptr)
+        {
+            return Status<void>::Error(ErrorCode::OutOfMemory, "ObjectPool allocation failed.");
+        }
+
         capacity += count;
-        MemoryChunk* chunk = new MemoryChunk(count);
+
+        Chunk* chunk = static_cast<Chunk*>(bytes);
         chunk->next = chunks;
         chunks = chunk;
-        free_nodes = chunk->nodes;
+
+        Storage* storages = reinterpret_cast<Storage*>(chunk->storage);
+        for (size_t i = 0; i < count - 1; ++i)
+        {
+            storages[i].next = &storages[i + 1];
+        }
+        storages[count - 1].next = free_storages;
+        free_storages = storages;
+        return Status<void>::Success();
     }
 };
 

@@ -10,20 +10,19 @@ namespace Blanketmen {
 class SpscBufferPool
 {
 public:
-    static constexpr size_t MIN_BUFFER_SIZE = 512;
-
-    SpscBufferPool(size_t size, size_t cap = 8, size_t flags = 0)
+    SpscBufferPool(size_t size, size_t cap = 8, int32 flags = 0)
     {
-        this->size = MemoryUtils::AlignUp(size >= MIN_BUFFER_SIZE ? size : MIN_BUFFER_SIZE, alignof(uint8*));
+        this->size = MemoryUtils::AlignUp(size, alignof(byte*));
         capacity = MathUtils::RoundUpToPowerOfTwo(cap);
         mask = capacity - 1;
 
-        buffers = static_cast<uint8**>(aligned_alloc(CACHE_LINE_SIZE, capacity * sizeof(uint8**)));
+        buffers = static_cast<byte**>(aligned_alloc(CACHE_LINE_SIZE, sizeof(byte**) * capacity));
         mmap_flags |= flags;
         mmap_size = this->size * capacity;
-        mmap_ptr = static_cast<uint8*>(mmap(nullptr, mmap_size, mmap_prot, mmap_flags, -1, 0));
+        mmap_ptr = static_cast<byte*>(mmap(nullptr, mmap_size, mmap_prot, mmap_flags, -1, 0));
         if (mmap_ptr == MAP_FAILED)
         {
+            // NOTE: Maybe re-try without huge page flag?
             throw std::bad_alloc();
         }
 
@@ -44,22 +43,11 @@ public:
 
     inline size_t Capacity() const noexcept { return capacity; }
 
-    inline size_t Count() const noexcept
-    {
-        return tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire);
-    }
+    inline bool IsEmpty() const noexcept { return head.load(std::memory_order_relaxed) == tail.load(std::memory_order_acquire); }
 
-    inline bool IsEmpty() const noexcept
-    {
-        return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire);
-    }
+    inline bool IsFull() const noexcept { return (tail.load(std::memory_order_relaxed) - head.load(std::memory_order_acquire)) == capacity; }
 
-    inline bool IsFull() const noexcept
-    {
-        return (tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire)) == capacity;
-    }
-
-    inline bool Acquire(uint8*& buf) noexcept
+    inline bool Acquire(byte*& buf) noexcept
     {
         size_t curr = head.load(std::memory_order_relaxed);
         if (curr == tail.load(std::memory_order_acquire))
@@ -72,7 +60,7 @@ public:
         return true;
     }
 
-    inline bool Release(uint8* buf) noexcept
+    inline bool Release(byte* buf) noexcept
     {
         if (buf == nullptr)
         {
@@ -97,10 +85,10 @@ private:
 
     int32 mmap_prot = PROT_READ | PROT_WRITE;
     int32 mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
-    uint8* mmap_ptr;
+    byte* mmap_ptr;
     size_t mmap_size;
 
-    uint8** buffers;
+    byte** buffers;
     alignas(CACHE_LINE_SIZE) Atomic<size_t> head;
     alignas(CACHE_LINE_SIZE) Atomic<size_t> tail;
 };

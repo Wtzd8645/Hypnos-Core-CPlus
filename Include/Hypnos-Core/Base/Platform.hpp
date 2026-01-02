@@ -16,11 +16,8 @@ namespace Blanketmen {
 
 #pragma region Type
 // DataModel: https://en.cppreference.com/w/cpp/language/types
-// NOTE: Signedness char represents a character, and shouldn't care whether it is signed or unsigned.
-typedef char                      char8;
 typedef signed char               int8;
 typedef unsigned char             uint8;
-typedef std::byte                 byte;
 typedef signed short int          int16;
 typedef unsigned short int        uint16;
 typedef signed int                int32;
@@ -29,10 +26,47 @@ typedef signed long long int      int64;
 typedef unsigned long long int    uint64;
 typedef float                     float32;
 typedef double                    float64;
+typedef std::byte                 byte;
 typedef std::string               string;
 #pragma endregion
 
 #pragma region Status
+enum class ErrorCode : int32
+{
+    Success = 0,
+    // Control
+    Cancelled = 100,
+    NotReady = 101,
+    AlreadyDone = 102,
+    Unsupported = 103,
+    // Resource
+    OutOfMemory = 200,
+    ResourceExhausted = 201,
+    QuotaExceeded = 202,
+    // Concurrency
+    WouldBlock = 300,
+    Busy = 301,
+    Timeout = 302,
+    RateLimited = 303,
+    Unavailable = 304,
+    // System
+    NotFound = 400,
+    AlreadyExists = 401,
+    InvalidArgument = 402,
+    InvalidHandle = 403,
+    IOError = 404,
+    InitializationFailed = 405,
+    ConfigurationError = 406,
+    Unauthenticated = 407,
+    PermissionDenied = 408,
+    // Data
+    InvalidFormat = 500,
+    ChecksumMismatch = 501,
+    VersionMismatch = 502,
+
+    Unknown = 999,
+};
+
 template<typename T>
 class Status
 {
@@ -43,17 +77,22 @@ public:
         return Status(std::forward<U>(val));
     }
 
-    static Status Error(int32 err, const char* msg) noexcept
+    static Status Error(ErrorCode err, const char* msg) noexcept
     {
-        assert(err != 0);
-        return Status(err, msg);
+        assert(err != ErrorCode::Success);
+        return Status((int32)err, msg);
     }
 
-    bool IsSuccess() const noexcept { return error_code == 0; }
+    bool IsFailed() const noexcept { return error_code != 0; }
     int32 ErrorCode() const noexcept { return error_code; }
     const T& Value() const noexcept { assert(value_engaged); return storage.value; }
     const char* Message() const noexcept { assert(error_code != 0); return storage.message; }
-    
+
+    ~Status()
+    {
+        Release();
+    }
+
     Status(const Status& other)
     {
         CopyFrom(other);
@@ -84,13 +123,8 @@ public:
         return *this;
     }
 
-    ~Status()
-    {
-        Release();
-    }
-
 private:
-    // NOTE: Explicit construtor/destructor are required for unions with non-trivial members.
+    // NOTE: Explicit ctor/dtor are required for unions containing non-trivial members to ensure member lifetimes are managed explicitly
     union Storage
     {
         T value;
@@ -167,10 +201,18 @@ template<>
 class Status<void>
 {
 public:
-    static Status Success() noexcept { return Status(); }
-    static Status Error(int32 err, const char* msg) noexcept { assert(err != 0); return Status(err, msg); }
+    static Status Success() noexcept
+    {
+        return Status();
+    }
 
-    bool IsSuccess() const noexcept { return error_code == 0; }
+    static Status Error(ErrorCode err, const char* msg) noexcept
+    {
+        assert(err != ErrorCode::Success);
+        return Status((int32)err, msg);
+    }
+
+    bool IsFailed() const noexcept { return error_code != 0; }
     int32 ErrorCode() const noexcept { return error_code; }
     const char* Message() const noexcept { assert(error_code != 0); return message; }
 
@@ -184,9 +226,6 @@ private:
 #pragma endregion
 
 #pragma region Memory
-template<typename T, size_t TSize = sizeof(T), size_t TAlign = alignof(T)>
-using AlignedStorage = std::aligned_storage_t<TSize, TAlign>;
-
 template<typename T, typename... TArgs>
 using Function = std::function<T(TArgs...)>;
 

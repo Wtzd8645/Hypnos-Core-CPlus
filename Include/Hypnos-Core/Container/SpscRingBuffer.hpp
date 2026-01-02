@@ -15,7 +15,7 @@ public:
         mask = capacity - 1;
 
         size_t size = MemoryUtils::AlignUp(capacity * sizeof(T), CACHE_LINE_SIZE);
-        buffer = static_cast<T*>(aligned_alloc(CACHE_LINE_SIZE, size));
+        buffer = static_cast<T*>(MemoryUtils::Allocate(size, CACHE_LINE_SIZE));
 
         head.store(0, std::memory_order_relaxed);
         tail.store(0, std::memory_order_relaxed);
@@ -23,7 +23,7 @@ public:
 
     ~SpscRingBuffer()
     {
-        free(buffer);
+        MemoryUtils::Deallocate(buffer, CACHE_LINE_SIZE);
     }
 
     size_t Capacity() const noexcept { return capacity; }

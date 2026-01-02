@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Hypnos-Core/Base/Memory/MemoryUtils.hpp>
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
@@ -12,9 +13,9 @@ class SparseObjectPool
 private:
     struct Element
     {
-        size_t index;
-        size_t pos;
-        T value;
+        size_t key; // Active element key.
+        size_t index; // Index in active elements.
+        alignas(T) byte storage[sizeof(T)];
     };
 
 public:
@@ -29,8 +30,8 @@ public:
 
         Iterator(Element* ptr, size_t count) : elem(ptr), count(count) { }
 
-        reference operator*() const { return elem[elem[count].index].value; }
-        pointer operator->() const { return &elem[elem[count].index].value; }
+        reference operator*() const { return *reinterpret_cast<T*>(&elem[elem[count].key].storage); }
+        pointer operator->() const { return reinterpret_cast<T*>(&elem[elem[count].key].storage); }
 
         Iterator& operator++() { ++count; return *this; }
         Iterator operator++(int) { Iterator it = *this; ++(*this); return it; }
@@ -43,19 +44,30 @@ public:
         size_t count;
     };
 
-    SparseObjectPool(size_t cap = 16) : capacity(cap), count(0), elems(new Element[cap])
+    SparseObjectPool(size_t cap = 16) : capacity(cap), count(0)
     {
-        for (size_t i = 0; i < cap; i++)
+        elems = static_cast<Element*>(MemoryUtils::Allocate<Element>(sizeof(Element) * cap));
+        for (size_t i = 0; i < cap; ++i)
         {
-            elems[i].index = i;
-            elems[i].pos = i;
+            Element& elem = elems[i];
+            elem.key = i;
+            elem.index = i;
+            new (&elem.storage) T();
         }
     }
 
     ~SparseObjectPool()
     {
-        delete[] elems;
+        MemoryUtils::Deallocate<Element>(elems);
     }
+
+    SparseObjectPool(const SparseObjectPool&) = delete;
+
+    SparseObjectPool& operator=(const SparseObjectPool&) = delete;
+
+    SparseObjectPool(SparseObjectPool&& other) = delete;
+
+    SparseObjectPool& operator=(SparseObjectPool&& other) = delete;
 
     Iterator begin() { return Iterator(elems, 0); }
 
@@ -67,31 +79,42 @@ public:
 
     void Clear()
     {
+        for (size_t i = 0; i < count; ++i)
+        {
+            reinterpret_cast<T*>(&elems[elems[i].key].storage)->~T();
+            elems[i].key = i;
+            elems[i].index = i;
+        }
+
+        for (size_t i = count; i < capacity; ++i)
+        {
+            elems[i].key = i;
+            elems[i].index = i;
+        }
+
         count = 0;
     }
 
     T* Acquire()
     {
-        return count < capacity ? &elems[elems[count++].index].value : nullptr;
+        return count < capacity ? new (&elems[elems[count++].key].storage) T() : nullptr;
     }
 
     void Release(T* obj)
     {
-        Element* elem = reinterpret_cast<Element*>(reinterpret_cast<char*>(obj) - offsetof(Element, value));
-        if (elem < elems || elem >= elems + capacity)
-        {
-            Logging::Error("[SparseObjectPool] Release failed. Please check whether the pool is used correctly.");
-            return;
-        }
+        obj->~T();
+        Element* elem = reinterpret_cast<Element*>(reinterpret_cast<byte*>(obj) - offsetof(Element, storage));
+        assert(elem >= elems && elem < elems + capacity);
 
-        size_t curr_index = elems[elem->pos].index;
-        size_t last_index = elems[--count].index;
-        elems[elem->pos].index = last_index;
-        elems[count].index = curr_index;
+        --count;
+        size_t curr_key = elems[elem->index].key;
+        size_t last_key = elems[count].key;
+        elems[elem->index].key = last_key;
+        elems[count].key = curr_key;
 
-        size_t pos = elem->pos;
-        elem->pos = elems[last_index].pos;
-        elems[last_index].pos = pos;
+        size_t index = elem->index;
+        elem->index = elems[last_key].index;
+        elems[last_key].index = index;
     }
 
 private:
