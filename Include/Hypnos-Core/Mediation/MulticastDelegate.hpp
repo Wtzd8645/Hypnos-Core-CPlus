@@ -1,171 +1,86 @@
 #pragma once
 
-#include <utility>
+#include "Delegate.hpp"
+#include <cassert>
+#include <vector>
 
 namespace Blanketmen {
 
-template<typename... TArgs>
+template<class... Args>
 class MulticastDelegate
 {
 public:
-    class FunctionBase
+    MulticastDelegate(size_t cap = 8)
     {
-    public:
-        FunctionBase* next = nullptr;
-
-        virtual ~FunctionBase() { }
-
-        virtual void operator()(TArgs&&... args) const = 0;
-    };
-
-    class StaticFunction : public FunctionBase
-    {
-    public:
-        typedef void (*FunctionPtr)(TArgs...);
-
-        FunctionPtr functionPtr;
-
-        StaticFunction(FunctionPtr funcPtr) : functionPtr(funcPtr) { }
-
-        void operator()(TArgs&&... args) const override final
-        {
-            (*functionPtr)(std::forward<TArgs>(args)...);
-        }
-    };
-
-    template<typename TObj>
-    class ObjectFunction : public FunctionBase
-    {
-    public:
-        typedef TObj* const ObjectPtr;
-        typedef void (TObj::* const MethodPtr)(TArgs...);
-
-        ObjectPtr objectPtr;
-        MethodPtr methodPtr;
-
-        ObjectFunction(ObjectPtr objPtr, MethodPtr mtdPtr) : objectPtr(objPtr), methodPtr(mtdPtr) { }
-
-        void operator()(TArgs&&... args) const override final
-        {
-            (objectPtr->*methodPtr)(std::forward<TArgs>(args)...);
-        }
-    };
-
-    MulticastDelegate() : functions(nullptr) { }
-    MulticastDelegate(const MulticastDelegate&) = delete;
-
-    ~MulticastDelegate()
-    {
-        Clear();
+        delegates.reserve(cap);
     }
+
+    void operator()(Args... args)
+    {
+        ++invokeDepth;
+        for (size_t i = 0; i < delegates.size(); ++i)
+        {
+            delegates[i](args...);
+        }
+        --invokeDepth;
+    }
+
+    template<void(*F)(Args...)>
+    void Register() { Register(Delegate<Args...>::template Bind<F>()); }
+
+    template<class T, void(T::* M)(Args...)>
+    void Register(T* obj) { Register(Delegate<Args...>::template Bind<T, M>(obj)); }
+
+    template<class T, void(T::* M)(Args...) const>
+    void Register(const T* obj) { Register(Delegate<Args...>::template Bind<T, M>(obj)); }
+
+    template<void(*F)(Args...)>
+    void Unregister() { Unregister(Delegate<Args...>::template Bind<F>()); }
+
+    template<class T, void(T::* M)(Args...)>
+    void Unregister(T* obj) { Unregister(Delegate<Args...>::template Bind<T, M>(obj)); }
+
+    template<class T, void(T::* M)(Args...) const>
+    void Unregister(const T* obj) { Unregister(Delegate<Args...>::template Bind<T, M>(obj)); }
 
     void Clear()
     {
-        FunctionBase* curr = functions;
-        FunctionBase* next = nullptr;
-        while (curr != nullptr)
-        {
-            next = curr->next;
-            delete curr;
-            curr = next;
-        }
-        functions = nullptr;
-    }
-
-    void operator()(TArgs... args) const
-    {
-        FunctionBase* curr = functions;
-        while (curr != nullptr)
-        {
-            (*curr)(std::forward<TArgs>(args)...);
-            curr = curr->next;
-        }
-    }
-
-    MulticastDelegate& operator=(const MulticastDelegate&) = delete;
-
-    MulticastDelegate& operator=(void(* const funcPtr)(TArgs...))
-    {
-        Clear();
-        functions = new StaticFunction(funcPtr);
-        return *this;
-    }
-
-    MulticastDelegate& operator+=(void(* const funcPtr)(TArgs...))
-    {
-        FunctionBase** curr = &functions;
-        while (*curr != nullptr)
-        {
-            curr = &(*curr)->next;
-        }
-        *curr = new StaticFunction(funcPtr);
-        return *this;
-    }
-
-    MulticastDelegate& operator-=(void(* const funcPtr)(TArgs...))
-    {
-        FunctionBase** curr = &functions;
-        while (*curr != nullptr)
-        {
-            StaticFunction* func = dynamic_cast<StaticFunction*>(*curr);
-            if (func == nullptr)
-            {
-                continue;
-            }
-
-            if (func->functionPtr == funcPtr)
-            {
-                *curr = (*curr)->next;
-                delete func;
-                break;
-            }
-
-            curr = &(*curr)->next;
-        }
-        return *this;
-    }
-
-    template<typename TObj>
-    void Assign(typename ObjectFunction<TObj>::ObjectPtr objPtr, typename ObjectFunction<TObj>::MethodPtr mtdPtr)
-    {
-        Clear();
-        functions = new ObjectFunction<TObj>(objPtr, mtdPtr);
-    }
-
-    template<typename TObj>
-    void Register(typename ObjectFunction<TObj>::ObjectPtr objPtr, typename ObjectFunction<TObj>::MethodPtr mtdPtr)
-    {
-        FunctionBase** curr = &functions;
-        while (*curr != nullptr)
-        {
-            curr = &(*curr)->next;
-        }
-        *curr = new ObjectFunction<TObj>(objPtr, mtdPtr);
-    }
-
-    template<typename TObj>
-    void Unregister(typename ObjectFunction<TObj>::ObjectPtr objPtr, typename ObjectFunction<TObj>::MethodPtr mtdPtr)
-    {
-        FunctionBase** curr = &functions;
-        while (*curr != nullptr)
-        {
-            ObjectFunction<TObj>* func = dynamic_cast<ObjectFunction<TObj>*>(*curr);
-            if (func == nullptr
-                || func->objectPtr != objPtr
-                || func->methodPtr != mtdPtr)
-            {
-                curr = &(*curr)->next;
-                continue;
-            }
-
-            *curr = (*curr)->next;
-            delete func;
-            return;
-        }
+        invokeDepth = 0;
+        delegates.clear();
     }
 
 private:
-    FunctionBase* functions = nullptr;
+    void Register(const Delegate<Args...>& dlg)
+    {
+        assert(invokeDepth == 0 && "[MulticastDelegate] Cannot register delegate during invocation");
+        assert(static_cast<bool>(dlg) && "[MulticastDelegate] Trying to bind an unbound delegate");
+        for (auto& d : delegates)
+        {
+            if (d == dlg)
+            {
+                return;
+            }
+        }
+        
+        delegates.push_back(dlg);
+    }
+
+    void Unregister(const Delegate<Args...>& dlg)
+    {
+        assert(invokeDepth == 0 && "[MulticastDelegate] Cannot unbind delegate during invocation");
+        assert(static_cast<bool>(dlg) && "[MulticastDelegate] Trying to unbind an unbound delegate");
+        for (auto it = delegates.begin(); it != delegates.end(); ++it)
+        {
+            if (*it == dlg)
+            {
+                delegates.erase(it);
+                return;
+            }
+        }
+    }
+
+    uint32 invokeDepth = 0;
+    std::vector<Delegate<Args...>> delegates;
 };
 
 } // namespace Blanketmen

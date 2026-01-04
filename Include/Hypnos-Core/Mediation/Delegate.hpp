@@ -1,109 +1,90 @@
 #pragma once
 
-#include <utility>
+#include <cassert>
 
 namespace Blanketmen {
 
-template<typename... TArgs>
+template<class... Args>
 class Delegate
 {
 public:
-    class FunctionBase
+    template<void(*F)(Args...)>
+    static Delegate Bind() { return Delegate(nullptr, &InvokeFunction<F>); }
+
+    template<class T, void(T::* M)(Args...)>
+    static Delegate Bind(T* obj) { return Delegate(static_cast<void*>(obj), &InvokeMethod<T, M>); }
+
+    template<class T, void(T::* M)(Args...) const>
+    static Delegate Bind(const T* obj) { return Delegate { const_cast<T*>(obj), &InvokeConstMethod<T, M> }; }
+
+    Delegate() = default;
+
+    explicit operator bool() const { return stub != nullptr; }
+
+    bool operator==(const Delegate& other) const { return ctx == other.ctx && stub == other.stub; }
+
+    void operator()(Args... args) const
     {
-    public:
-        virtual ~FunctionBase() { }
-
-        virtual void operator()(TArgs&&... args) const = 0;
-    };
-
-    class StaticFunction : public FunctionBase
-    {
-    public:
-        typedef void (*FunctionPtr)(TArgs...);
-
-        FunctionPtr functionPtr;
-
-        StaticFunction(FunctionPtr funcPtr) : functionPtr(funcPtr) { }
-
-        void operator()(TArgs&&... args) const override final
+        if (stub != nullptr)
         {
-            (*functionPtr)(std::forward<TArgs>(args)...);
-        }
-    };
-
-    template<typename TObj>
-    class ObjectFunction : public FunctionBase
-    {
-    public:
-        typedef TObj* const ObjectPtr;
-        typedef void (TObj::* const MethodPtr)(TArgs...);
-
-        ObjectPtr objectPtr;
-        MethodPtr methodPtr;
-
-        ObjectFunction(ObjectPtr objPtr, MethodPtr mtdPtr) : objectPtr(objPtr), methodPtr(mtdPtr) { }
-
-        void operator()(TArgs&&... args) const override final
-        {
-            (objectPtr->*methodPtr)(std::forward<TArgs>(args)...);
-        }
-    };
-
-    Delegate() : function(nullptr) { }
-    Delegate(void(* const funcPtr)(TArgs...)) : function(new StaticFunction(funcPtr)) { }
-    template <typename TObj>
-    Delegate(TObj* const objPtr, void(TObj::* const mtdPtr)(TArgs...)) : function(new ObjectFunction<TObj>(objPtr, mtdPtr)) { }
-
-    Delegate(const Delegate&) = delete;
-    Delegate(Delegate&& other) noexcept : function(other.function) { other.function = nullptr; }
-
-    ~Delegate()
-    {
-        if (function != nullptr)
-        {
-            delete function;
+            stub(ctx, std::forward<Args>(args)...);
         }
     }
 
-    void operator()(TArgs... args) const
+    template<void(*F)(Args...)>
+    void Register()
     {
-        if (function != nullptr)
-        {
-            (*function)(std::forward<TArgs>(args)...);
-        }
+        ctx = nullptr;
+        stub = &InvokeFunction<F>;
     }
 
-    Delegate& operator=(const Delegate&) = delete;
-
-    Delegate& operator=(void(* const funcPtr)(TArgs...))
+    template<class T, void(T::* M)(Args...)>
+    void Register(T* obj)
     {
-        if (function != nullptr)
-        {
-            delete function;
-            function = nullptr;
-        }
-
-        function = new StaticFunction(funcPtr);
-        return *this;
+        ctx = obj;
+        stub = &InvokeMethod<T, M>;
     }
 
-    template<typename TObj>
-    void Assign(typename ObjectFunction<TObj>::ObjectPtr objPtr, typename ObjectFunction<TObj>::MethodPtr mtdPtr)
+    template<class T, void(T::* M)(Args...) const>
+    void Register(const T* obj)
     {
-        if (function != nullptr)
-        {
-            delete function;
-            function = nullptr;
-        }
+        ctx = const_cast<T*>(obj);
+        stub = &InvokeConstMethod<T, M>;
+    }
 
-        if (objPtr != nullptr && mtdPtr != nullptr)
-        {
-            function = new ObjectFunction<TObj>(objPtr, mtdPtr);
-        }
+    void Unregister()
+    {
+        ctx = nullptr;
+        stub = nullptr;
     }
 
 private:
-    FunctionBase* function;
+    template<void(*F)(Args...)>
+    static void InvokeFunction(void*, Args... args)
+    {
+        F(std::forward<Args>(args)...);
+    }
+
+    template<class T, void(T::* M)(Args...)>
+    static void InvokeMethod(void* ctx, Args... args)
+    {
+        auto* obj = static_cast<T*>(ctx);
+        (obj->*M)(std::forward<Args>(args)...);
+    }
+
+    template<class T, void(T::* M)(Args...) const>
+    static void InvokeConstMethod(void* ctx, Args... args)
+    {
+        auto* obj = static_cast<const T*>(ctx);
+        (obj->*M)(std::forward<Args>(args)...);
+    }
+
+    using Stub = void(*)(void* ctx, Args...);
+
+    Delegate(void* ctx, Stub stub) : ctx(ctx), stub(stub) { }
+
+    void* ctx = nullptr;
+    Stub stub = nullptr;
 };
 
 } // namespace Blanketmen
