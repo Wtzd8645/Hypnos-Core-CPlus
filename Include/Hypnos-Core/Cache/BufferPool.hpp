@@ -1,100 +1,114 @@
 #pragma once
 
-#include <Hypnos-Core/Base/Math/MathUtils.hpp>
-#include <stdexcept>
-#include <sys/mman.h>
+#include <Hypnos-Core/Base/Memory/MemoryAllocatePolicy.hpp>
+#include <Hypnos-Core/Base/Memory/MemoryUtils.hpp>
 
 namespace Blanketmen {
 
+template<typename TAllocPolicy>
 class BufferPool
 {
 public:
-    BufferPool(size_t size, size_t cap = 8, int32 flags = 0)
+    BufferPool(size_t buf_size)
     {
-        this->size = MemoryUtils::AlignUp(size, alignof(byte*));
-        capacity = MathUtils::RoundUpToPowerOfTwo(cap);
-        mask = capacity - 1;
-
-        buffers = static_cast<byte**>(aligned_alloc(alignof(byte*), sizeof(byte*) * capacity));
-        mmap_flags |= flags;
-        mmap_size = this->size * capacity;
-        mmap_ptr = static_cast<byte*>(mmap(nullptr, mmap_size, mmap_prot, mmap_flags, -1, 0));
-        if (mmap_ptr == MAP_FAILED)
-        {
-            throw std::bad_alloc();
-        }
-
-        for (size_t i = 0; i < capacity; ++i)
-        {
-            buffers[i] = mmap_ptr + (i * this->size);
-        }
-
-        head = 0;
-        tail = capacity;
+        size = MemoryUtils::AlignUp(buf_size, alignof(byte*));
     }
 
     ~BufferPool()
     {
-        free(buffers);
-        munmap(mmap_ptr, mmap_size);
+        Chunk* chunk = chunks;
+        while (chunk != nullptr)
+        {
+            Chunk* next = chunk->next;
+            TAllocPolicy::Deallocate(chunk->ptr, chunk->size);
+            MemoryUtils::Deallocate<Chunk>(chunk);
+            chunk = next;
+        }
     }
 
     BufferPool(const BufferPool&) = delete;
-
     BufferPool& operator=(const BufferPool&) = delete;
 
     BufferPool(BufferPool&&) = delete;
-
     BufferPool& operator=(BufferPool&&) = delete;
 
-    inline size_t Capacity() const noexcept { return capacity; }
+    size_t Capacity() const noexcept { return capacity; }
 
-    inline bool IsEmpty() const noexcept { return head == tail; }
-
-    inline bool IsFull() const noexcept { return (tail - head) == capacity; }
-
-    inline bool Acquire(byte*& buf) noexcept
+    Status<void> Allocate(size_t count)
     {
-        if (head == tail)
+        size_t alloc_size = size * count;
+        byte* ptr = TAllocPolicy::Allocate(alloc_size);
+        if (ptr == nullptr)
         {
-            return false;
+            return Status<void>::Error(ErrorCode::OutOfMemory, "BufferPool allocation failed.");
         }
 
-        buf = buffers[head & mask];
-        ++head;
-        return true;
+        void* bytes = MemoryUtils::Allocate<Chunk>(sizeof(Chunk));
+        if (bytes == nullptr)
+        {
+            TAllocPolicy::Deallocate(ptr, alloc_size);
+            return Status<void>::Error(ErrorCode::OutOfMemory, "BufferPool allocation failed.");
+        }
+
+        count = alloc_size / size;
+        capacity += count;
+
+        Chunk* chunk = static_cast<Chunk*>(bytes);
+        chunk->ptr = ptr;
+        chunk->size = alloc_size;
+        chunk->next = chunks;
+        chunks = chunk;
+
+        for (size_t i = 0; i < count - 1; ++i)
+        {
+            NextOf(ptr + i * size) = ptr + (i + 1) * size;
+        }
+        NextOf(ptr + (count - 1) * size) = free_nodes;
+        free_nodes = ptr;
+        return Status<void>::Success();
     }
 
-    inline bool Release(byte* buf) noexcept
+    byte* Acquire()
     {
-        if (buf == nullptr)
+        assert(capacity > 0 && "BufferPool is not allocated.");
+        if (free_nodes == nullptr && Allocate(capacity).IsFailed())
         {
-            return false;
+            return nullptr;
         }
 
-        if ((tail - head) == capacity)
-        {
-            return false;
-        }
+        byte* buf = free_nodes;
+        free_nodes = NextOf(free_nodes);
+        return buf;
+    }
 
-        buffers[tail & mask] = buf;
-        ++tail;
-        return true;
+    void Release(byte* buf)
+    {
+        assert(buf != nullptr && "Cannot release a null buffer.");
+        NextOf(buf) = free_nodes;
+        free_nodes = buf;
     }
 
 private:
-    size_t size;
-    size_t capacity;
-    size_t mask;
+    struct Chunk
+    {
+        Chunk* next;
+        byte* ptr;
+        size_t size;
+    };
 
-    int32 mmap_prot = PROT_READ | PROT_WRITE;
-    int32 mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
-    byte* mmap_ptr;
-    size_t mmap_size;
+    size_t size = 0;
 
-    byte** buffers;
-    size_t head;
-    size_t tail;
+    size_t capacity = 0;
+    Chunk* chunks = nullptr;
+    byte* free_nodes = nullptr;
+
+    static byte*& NextOf(byte* buf) noexcept
+    {
+        return *reinterpret_cast<byte**>(buf);
+    }
 };
+
+using HeapBufferPool = BufferPool<HeapAllocatePolicy>;
+using MmapBufferPool = BufferPool<MmapAllocatePolicy<0>>;
 
 } // namespace Blanketmen

@@ -1,17 +1,15 @@
 #pragma once
 
+#include <Hypnos-Core/Base/Memory/MemoryAllocatePolicy.hpp>
 #include <Hypnos-Core/Base/Memory/MemoryUtils.hpp>
 
 namespace Blanketmen {
 
-template<typename T>
+template<typename T, typename TAllocPolicy>
 class ObjectPool
 {
 public:
-    ObjectPool(size_t cap = 8)
-    {
-        Allocate(cap);
-    }
+    ObjectPool() = default;
 
     ~ObjectPool()
     {
@@ -19,44 +17,75 @@ public:
         while (chunk != nullptr)
         {
             Chunk* next = chunk->next;
+            TAllocPolicy::Deallocate(chunk->ptr, chunk->size);
             MemoryUtils::Deallocate<Chunk>(chunk);
             chunk = next;
         }
     }
 
     ObjectPool(const ObjectPool&) = delete;
-
     ObjectPool& operator=(const ObjectPool&) = delete;
 
     ObjectPool(ObjectPool&&) = delete;
-
     ObjectPool& operator=(ObjectPool&&) = delete;
 
     size_t Capacity() const noexcept { return capacity; }
 
+    Status<void> Allocate(size_t count)
+    {
+        size_t alloc_size = sizeof(Storage) * count;
+        byte* ptr = TAllocPolicy::Allocate(alloc_size);
+        if (ptr == nullptr)
+        {
+            return Status<void>::Error(ErrorCode::OutOfMemory, "ObjectPool allocation failed.");
+        }
+
+        void* bytes = MemoryUtils::Allocate<Chunk>(sizeof(Chunk));
+        if (bytes == nullptr)
+        {
+            TAllocPolicy::Deallocate(ptr, alloc_size);
+            return Status<void>::Error(ErrorCode::OutOfMemory, "ObjectPool allocation failed.");
+        }
+
+        count = alloc_size / sizeof(Storage);
+        capacity += count;
+
+        Chunk* chunk = static_cast<Chunk*>(bytes);
+        chunk->ptr = ptr;
+        chunk->size = alloc_size;
+        chunk->next = chunks;
+        chunks = chunk;
+
+        Storage* storages = reinterpret_cast<Storage*>(ptr);
+        for (size_t i = 0; i < count - 1; ++i)
+        {
+            storages[i].next = &storages[i + 1];
+        }
+        storages[count - 1].next = free_nodes;
+        free_nodes = storages;
+        return Status<void>::Success();
+    }
+
     T* Acquire()
     {
-        if (free_storages == nullptr && Allocate(capacity).IsFailed())
+        assert(capacity > 0 && "ObjectPool is not allocated.");
+        if (free_nodes == nullptr && Allocate(capacity).IsFailed())
         {
             return nullptr;
         }
 
-        Storage* storage = free_storages;
-        free_storages = free_storages->next;
+        Storage* storage = free_nodes;
+        free_nodes = free_nodes->next;
         return new (storage) T();
     }
 
     void Release(T* obj)
     {
-        if (obj == nullptr)
-        {
-            return;
-        }
-
+        assert(obj != nullptr && "Cannot release a null object.");
         obj->~T();
         Storage* storage = reinterpret_cast<Storage*>(obj);
-        storage->next = free_storages;
-        free_storages = storage;
+        storage->next = free_nodes;
+        free_nodes = storage;
     }
 
 private:
@@ -69,36 +98,18 @@ private:
     struct Chunk
     {
         Chunk* next;
-        alignas(Storage) byte storage[];
+        byte* ptr;
+        size_t size;
     };
 
     size_t capacity = 0;
     Chunk* chunks = nullptr;
-    Storage* free_storages = nullptr;
-
-    Status<void> Allocate(size_t count)
-    {
-        void* bytes = MemoryUtils::Allocate<Chunk>(offsetof(Chunk, storage) + sizeof(Storage) * count);
-        if (bytes == nullptr)
-        {
-            return Status<void>::Error(ErrorCode::OutOfMemory, "ObjectPool allocation failed.");
-        }
-
-        capacity += count;
-
-        Chunk* chunk = static_cast<Chunk*>(bytes);
-        chunk->next = chunks;
-        chunks = chunk;
-
-        Storage* storages = reinterpret_cast<Storage*>(chunk->storage);
-        for (size_t i = 0; i < count - 1; ++i)
-        {
-            storages[i].next = &storages[i + 1];
-        }
-        storages[count - 1].next = free_storages;
-        free_storages = storages;
-        return Status<void>::Success();
-    }
+    Storage* free_nodes = nullptr;
 };
+
+template<typename T>
+using HeapObjectPool = ObjectPool<T, HeapAllocatePolicy>;
+template<typename T>
+using MmapObjectPool = ObjectPool<T, MmapAllocatePolicy<0>>;
 
 } // namespace Blanketmen

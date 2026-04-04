@@ -33,6 +33,7 @@ typedef std::string               string;
 #pragma region Status
 enum class ErrorCode : int32
 {
+    None = -1,
     Success = 0,
     // Control
     Cancelled = 100,
@@ -79,26 +80,26 @@ public:
 
     static Status Error(ErrorCode err, const char* msg) noexcept
     {
-        assert(err != ErrorCode::Success);
+        assert(err > ErrorCode::Success);
         return Status((int32)err, msg);
     }
 
-    bool IsFailed() const noexcept { return error_code != 0; }
+    bool IsFailed() const noexcept { return error_code > 0; }
     int32 ErrorCode() const noexcept { return error_code; }
-    const T& Value() const noexcept { assert(value_engaged); return storage.value; }
-    const char* Message() const noexcept { assert(error_code != 0); return storage.message; }
+    const T& Value() const noexcept { assert(error_code == 0); return storage.value; }
+    const char* Message() const noexcept { assert(error_code > 0); return storage.message; }
 
     ~Status()
     {
         Release();
     }
 
-    Status(const Status& other)
+    Status(const Status& other) requires std::is_copy_constructible_v<T>
     {
         CopyFrom(other);
     }
 
-    Status& operator=(const Status& other)
+    Status& operator=(const Status& other) requires std::is_copy_constructible_v<T>
     {
         if (this != &other)
         {
@@ -108,12 +109,12 @@ public:
         return *this;
     }
 
-    Status(Status&& other) noexcept
+    Status(Status&& other) noexcept requires std::is_move_constructible_v<T>
     {
         MoveFrom(std::move(other));
     }
 
-    Status& operator=(Status&& other) noexcept
+    Status& operator=(Status&& other) noexcept requires std::is_move_constructible_v<T>
     {
         if (this != &other)
         {
@@ -134,65 +135,62 @@ private:
         ~Storage() { }
     };
 
-    int32 error_code;
-    bool value_engaged;
     Storage storage;
+    int32 error_code = (int32)ErrorCode::None;
 
     template<typename U>
-    explicit Status(U&& val) : error_code(0), value_engaged(true)
+    explicit Status(U&& val)
     {
         new (&storage.value) T(std::forward<U>(val));
+        error_code = 0;
     }
 
-    Status(int32 err, const char* msg) : error_code(err), value_engaged(false)
+    Status(int32 err, const char* msg)
     {
         new (&storage.message) const char* (msg);
+        error_code = err;
     }
 
     void Release()
     {
-        if (value_engaged)
+        if (error_code == 0)
         {
-            value_engaged = false;
             storage.value.~T();
+            error_code = (int32)ErrorCode::None;
         }
     }
 
     void CopyFrom(const Status& other)
     {
-        error_code = other.error_code;
-        value_engaged = other.value_engaged;
-
-        if (error_code != 0)
+        if (other.error_code > 0)
         {
-            value_engaged = false;
             new (&storage.message) const char* (other.storage.message);
+            error_code = other.error_code;
             return;
         }
 
-        if (value_engaged)
+        if (other.error_code == 0)
         {
             new (&storage.value) T(other.storage.value);
+            error_code = 0;
         }
     }
 
-    void MoveFrom(Status&& other) noexcept
+    void MoveFrom(Status&& other) noexcept(std::is_nothrow_move_constructible_v<T>)
     {
-        error_code = other.error_code;
-        value_engaged = other.value_engaged;
-
-        if (error_code != 0)
+        if (other.error_code > 0)
         {
-            value_engaged = false;
             new (&storage.message) const char* (other.storage.message);
+            error_code = other.error_code;
             return;
         }
 
-        if (value_engaged)
+        if (other.error_code == 0)
         {
             new (&storage.value) T(std::move(other.storage.value));
-            other.value_engaged = false;
+            error_code = 0;
             other.storage.value.~T();
+            other.error_code = (int32)ErrorCode::None;
         }
     }
 };
@@ -208,20 +206,20 @@ public:
 
     static Status Error(ErrorCode err, const char* msg) noexcept
     {
-        assert(err != ErrorCode::Success);
+        assert(err > ErrorCode::Success);
         return Status((int32)err, msg);
     }
 
     bool IsFailed() const noexcept { return error_code != 0; }
     int32 ErrorCode() const noexcept { return error_code; }
-    const char* Message() const noexcept { assert(error_code != 0); return message; }
+    const char* Message() const noexcept { assert(error_code > 0); return message; }
 
 private:
-    int32 error_code;
     const char* message;
+    int32 error_code;
 
     Status() : error_code(0) { }
-    Status(int32 err, const char* msg) : error_code(err), message(msg) { }
+    Status(int32 err, const char* msg) : message(msg), error_code(err) { }
 };
 #pragma endregion
 
