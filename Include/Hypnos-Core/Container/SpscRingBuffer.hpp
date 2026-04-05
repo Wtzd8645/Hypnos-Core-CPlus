@@ -2,6 +2,7 @@
 
 #include "Hypnos-Core/Base/Math/MathUtils.hpp"
 #include "Hypnos-Core/Base/Memory/MemoryUtils.hpp"
+#include <type_traits>
 
 namespace Blanketmen {
 
@@ -9,6 +10,8 @@ template <typename T>
 class SpscRingBuffer
 {
 public:
+    static_assert(std::is_trivially_copyable_v<T>, "SpscRingBuffer requires trivially copyable payloads.");
+
     SpscRingBuffer(size_t cap)
     {
         capacity = MathUtils::RoundUpToPowerOfTwo(cap);
@@ -27,6 +30,8 @@ public:
     }
 
     size_t Capacity() const noexcept { return capacity; }
+    size_t Size() const noexcept { return tail.load(std::memory_order_acquire) - head.load(std::memory_order_acquire); }
+    size_t RemainingCapacity() const noexcept { return capacity - Size(); }
 
     bool IsEmpty() const noexcept { return head.load(std::memory_order_relaxed) == tail.load(std::memory_order_acquire); }
 

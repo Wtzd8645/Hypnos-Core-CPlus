@@ -77,6 +77,45 @@ public:
 
     size_t Count() const noexcept { return count; }
 
+    size_t IndexOf(const T* obj) const
+    {
+        const Element* elem = reinterpret_cast<const Element*>(reinterpret_cast<const byte*>(obj) - offsetof(Element, storage));
+        assert(elem >= elems && elem < elems + capacity);
+        return static_cast<size_t>(elem - elems);
+    }
+
+    T* TryGet(size_t slot)
+    {
+        if (slot >= capacity)
+        {
+            return nullptr;
+        }
+
+        Element& elem = elems[slot];
+        if (elem.index >= count || elems[elem.index].key != slot)
+        {
+            return nullptr;
+        }
+
+        return reinterpret_cast<T*>(&elem.storage);
+    }
+
+    const T* TryGet(size_t slot) const
+    {
+        if (slot >= capacity)
+        {
+            return nullptr;
+        }
+
+        const Element& elem = elems[slot];
+        if (elem.index >= count || elems[elem.index].key != slot)
+        {
+            return nullptr;
+        }
+
+        return reinterpret_cast<const T*>(&elem.storage);
+    }
+
     void Clear()
     {
         for (size_t i = 0; i < count; ++i)
