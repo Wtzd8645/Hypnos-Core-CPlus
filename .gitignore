@@ -1,5 +1,11 @@
 .vs/
+.next/
+.output/
+bin/
+build/
+obj/
 out/
+target/
 
 CMakeLists.txt.user
 CMakeCache.txt

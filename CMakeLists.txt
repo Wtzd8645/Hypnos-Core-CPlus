@@ -6,6 +6,8 @@ include(GNUInstallDirs)
 
 add_library(Hypnos-Core INTERFACE)
 
+target_compile_features(Hypnos-Core INTERFACE cxx_std_20)
+
 target_compile_options(Hypnos-Core INTERFACE
     -includeHypnos-Core/Base/Logging.hpp
     -includeHypnos-Core/Base/Platform.hpp)
@@ -14,7 +16,7 @@ target_compile_options(Hypnos-Core INTERFACE
 # BUILD_INTERFACE: Points to the source tree location during build time
 # INSTALL_INTERFACE: Points to the installed location after package installation
 target_include_directories(Hypnos-Core INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
@@ -34,7 +36,7 @@ if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     )
 
     # Install the headers
-    install(DIRECTORY Include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     # Install the export set for the target
     install(EXPORT HypnosCoreTargets
@@ -46,7 +48,7 @@ if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     # Generate the config file
     include(CMakePackageConfigHelpers)
     configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/HypnosCoreConfig.cmake.in"
+        "${PROJECT_SOURCE_DIR}/cmake/HypnosCoreConfig.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/HypnosCoreConfig.cmake"
         INSTALL_DESTINATION lib/cmake/Hypnos-Core
     )
